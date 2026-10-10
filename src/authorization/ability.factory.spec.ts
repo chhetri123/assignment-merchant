@@ -72,6 +72,16 @@ describe('AbilityFactory', () => {
     });
   });
 
+  describe('subject detection', () => {
+    const ability = factory.createForUser(ADMIN);
+
+    it('raises on a subject it does not know', () => {
+      expect(() => ability.can(Action.Read, { createdById: SALES.id })).toThrow(
+        /Unknown authorization subject/,
+      );
+    });
+  });
+
   describe('ADMIN', () => {
     const ability = factory.createForUser(ADMIN);
 

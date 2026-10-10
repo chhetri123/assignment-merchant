@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user';
-import { redact } from '../common/security/redact';
+import { redactRecord } from '../common/security/redact';
 import { AuditAction, AuditLog } from './audit-log.entity';
 
 export interface AuditEntryInput {
@@ -28,7 +28,7 @@ export class AuditService {
         entityId: entry.entityId,
         actorId: entry.actor?.id ?? null,
         actorRole: entry.actor?.role ?? 'SYSTEM',
-        metadata: redact(entry.metadata ?? {}) as Record<string, unknown>,
+        metadata: redactRecord(entry.metadata ?? {}),
       }),
     );
   }

@@ -24,6 +24,18 @@ export enum Action {
 export type Subjects = InferSubjects<typeof MerchantApplication | typeof AuditLog> | 'all';
 export type AppAbility = MongoAbility<[Action, Subjects]>;
 
+// Explicit instead of reading subject.constructor, so an unexpected subject
+// raises instead of silently matching no rule.
+function detectSubjectType(subject: object): ExtractSubjectType<Subjects> {
+  if (subject instanceof MerchantApplication) {
+    return MerchantApplication;
+  }
+  if (subject instanceof AuditLog) {
+    return AuditLog;
+  }
+  throw new Error(`Unknown authorization subject: ${subject.constructor.name}`);
+}
+
 // All authorization rules. Conditions are matched against the loaded record.
 @Injectable()
 export class AbilityFactory {
@@ -51,8 +63,6 @@ export class AbilityFactory {
         break;
     }
 
-    return build({
-      detectSubjectType: (subject: object) => subject.constructor as ExtractSubjectType<Subjects>,
-    });
+    return build({ detectSubjectType });
   }
 }

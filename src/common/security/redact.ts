@@ -19,6 +19,9 @@ const toSnakeCase = (key: string): string =>
     .replace(/[^a-zA-Z0-9]+/g, '_')
     .toLowerCase();
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value) && !(value instanceof Date);
+
 const isSensitive = (key: string): boolean => {
   const normalized = toSnakeCase(key);
   return SENSITIVE_PATTERNS.some((pattern) => pattern.test(normalized));
@@ -34,21 +37,22 @@ export function redact(value: unknown, depth = 0): unknown {
     return value.map((item) => redact(item, depth + 1));
   }
 
-  if (value instanceof Date) {
-    return value;
-  }
-
-  if (typeof value === 'object') {
-    return Object.entries(value as Record<string, unknown>).reduce<Record<string, unknown>>(
-      (acc, [key, val]) => {
-        acc[key] = isSensitive(key) ? REDACTED : redact(val, depth + 1);
-        return acc;
-      },
-      {},
-    );
+  if (isRecord(value)) {
+    return redactRecord(value, depth);
   }
 
   return value;
+}
+
+// Keeps the record type, so callers storing JSON metadata need no assertion.
+export function redactRecord(
+  value: Record<string, unknown>,
+  depth = 0,
+): Record<string, unknown> {
+  return Object.entries(value).reduce<Record<string, unknown>>((acc, [key, val]) => {
+    acc[key] = isSensitive(key) ? REDACTED : redact(val, depth + 1);
+    return acc;
+  }, {});
 }
 
 // Keeps the last few characters only, e.g. `***6789`.
