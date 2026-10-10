@@ -79,27 +79,27 @@ export class AuthService {
       jti: randomUUID(),
     };
 
-    const accessExpiresIn = this.config.getOrThrow<string>('jwt.accessExpiresIn');
-    const refreshExpiresIn = this.config.getOrThrow<string>('jwt.refreshExpiresIn');
+    const accessTtl = this.config.getOrThrow<number>('jwt.accessTtlSeconds');
+    const refreshTtl = this.config.getOrThrow<number>('jwt.refreshTtlSeconds');
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwt.signAsync(accessPayload, {
         secret: this.config.getOrThrow<string>('jwt.accessSecret'),
-        expiresIn: accessExpiresIn,
-      } as never),
+        expiresIn: accessTtl,
+      }),
       this.jwt.signAsync(refreshPayload, {
         secret: this.config.getOrThrow<string>('jwt.refreshSecret'),
-        expiresIn: refreshExpiresIn,
-      } as never),
+        expiresIn: refreshTtl,
+      }),
     ]);
 
-    await this.sessions.save(user.id, refreshPayload.jti, durationToSeconds(refreshExpiresIn));
+    await this.sessions.save(user.id, refreshPayload.jti, refreshTtl);
 
     return {
       accessToken,
       refreshToken,
       tokenType: 'Bearer',
-      expiresIn: durationToSeconds(accessExpiresIn),
+      expiresIn: accessTtl,
       user: { id: user.id, email: user.email, role: user.role },
     };
   }
@@ -117,13 +117,4 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token is invalid or expired');
     }
   }
-}
-
-export function durationToSeconds(duration: string): number {
-  const match = /^(\d+)([smhd])$/.exec(duration);
-  if (!match) {
-    return Number(duration) || 900;
-  }
-  const multipliers: Record<string, number> = { s: 1, m: 60, h: 3600, d: 86400 };
-  return Number(match[1]) * multipliers[match[2]];
 }

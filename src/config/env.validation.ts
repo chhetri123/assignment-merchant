@@ -1,6 +1,7 @@
 import { plainToInstance } from 'class-transformer';
 import { IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Matches, validateSync } from 'class-validator';
 import { Type } from 'class-transformer';
+import { DURATION_PATTERN } from '../common/duration';
 
 // Fails the boot instead of a request later.
 class EnvironmentVariables {
@@ -55,11 +56,11 @@ class EnvironmentVariables {
   JWT_REFRESH_SECRET: string;
 
   @IsOptional()
-  @IsString()
+  @Matches(DURATION_PATTERN, { message: 'JWT_ACCESS_EXPIRES_IN must look like 15m, 2h or 7d' })
   JWT_ACCESS_EXPIRES_IN?: string;
 
   @IsOptional()
-  @IsString()
+  @Matches(DURATION_PATTERN, { message: 'JWT_REFRESH_EXPIRES_IN must look like 15m, 2h or 7d' })
   JWT_REFRESH_EXPIRES_IN?: string;
 
   @IsString()

@@ -1,3 +1,5 @@
+import { durationToSeconds } from '../common/duration';
+
 export interface AppConfig {
   env: string;
   port: number;
@@ -15,9 +17,9 @@ export interface AppConfig {
   };
   jwt: {
     accessSecret: string;
-    accessExpiresIn: string;
+    accessTtlSeconds: number;
     refreshSecret: string;
-    refreshExpiresIn: string;
+    refreshTtlSeconds: number;
   };
   encryptionKey: string;
 }
@@ -39,9 +41,9 @@ export default (): AppConfig => ({
   },
   jwt: {
     accessSecret: process.env.JWT_ACCESS_SECRET as string,
-    accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN ?? '15m',
+    accessTtlSeconds: durationToSeconds(process.env.JWT_ACCESS_EXPIRES_IN ?? '15m'),
     refreshSecret: process.env.JWT_REFRESH_SECRET as string,
-    refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? '7d',
+    refreshTtlSeconds: durationToSeconds(process.env.JWT_REFRESH_EXPIRES_IN ?? '7d'),
   },
   encryptionKey: process.env.ENCRYPTION_KEY as string,
 });

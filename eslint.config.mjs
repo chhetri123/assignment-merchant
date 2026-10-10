@@ -22,6 +22,17 @@ export default tseslint.config(
       '@typescript-eslint/no-empty-object-type': ['error', { allowInterfaces: 'with-single-extends' }],
       // The escape hatches this codebase must not use.
       '@typescript-eslint/no-explicit-any': 'error',
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'TSAsExpression > TSNeverKeyword',
+          message: 'Do not cast to never to silence a type error; fix the type.',
+        },
+        {
+          selector: 'TSAsExpression > TSUnknownKeyword',
+          message: 'Do not launder a value through `as unknown`; narrow it instead.',
+        },
+      ],
       '@typescript-eslint/no-non-null-assertion': 'error',
       '@typescript-eslint/no-unnecessary-type-assertion': 'error',
       '@typescript-eslint/consistent-type-imports': [
