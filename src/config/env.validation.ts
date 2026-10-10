@@ -1,0 +1,73 @@
+import { plainToInstance } from 'class-transformer';
+import { IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Matches, validateSync } from 'class-validator';
+import { Type } from 'class-transformer';
+
+// Fail fast on boot instead of hitting a missing secret at request time.
+class EnvironmentVariables {
+  @IsOptional()
+  @IsIn(['development', 'test', 'production'])
+  NODE_ENV?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  PORT?: number;
+
+  @IsString()
+  @IsNotEmpty()
+  DB_HOST: string;
+
+  @Type(() => Number)
+  @IsInt()
+  DB_PORT: number;
+
+  @IsString()
+  @IsNotEmpty()
+  DB_USERNAME: string;
+
+  @IsString()
+  @IsNotEmpty()
+  DB_PASSWORD: string;
+
+  @IsString()
+  @IsNotEmpty()
+  DB_DATABASE: string;
+
+  @IsString()
+  @IsNotEmpty()
+  REDIS_HOST: string;
+
+  @Type(() => Number)
+  @IsInt()
+  REDIS_PORT: number;
+
+  @IsString()
+  @Matches(/^.{32,}$/, { message: 'JWT_SECRET must be at least 32 characters' })
+  JWT_SECRET: string;
+
+  @IsOptional()
+  @IsString()
+  JWT_EXPIRES_IN?: string;
+
+  @IsString()
+  @Matches(/^[0-9a-fA-F]{64}$/, { message: 'ENCRYPTION_KEY must be 64 hex characters (32 bytes)' })
+  ENCRYPTION_KEY: string;
+}
+
+export function validateEnv(config: Record<string, unknown>) {
+  const validated = plainToInstance(EnvironmentVariables, config, {
+    enableImplicitConversion: false,
+    excludeExtraneousValues: false,
+  });
+
+  const errors = validateSync(validated, { skipMissingProperties: false, whitelist: false });
+
+  if (errors.length > 0) {
+    const messages = errors
+      .map((error) => Object.values(error.constraints ?? {}).join(', '))
+      .join('; ');
+    throw new Error(`Invalid environment configuration: ${messages}`);
+  }
+
+  return config;
+}
