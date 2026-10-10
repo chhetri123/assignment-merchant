@@ -197,6 +197,61 @@ describe('Application lifecycle (e2e)', () => {
       .expect(400);
   });
 
+  it('serialises concurrent submits of the same application', async () => {
+    const created = await create();
+    const submit = () =>
+      ctx
+        .http()
+        .post(`/api/v1/applications/${created.body.id}/submit`)
+        .set('Authorization', bearer(salesToken));
+
+    const [first, second] = await Promise.all([submit(), submit()]);
+    const statuses = [first.status, second.status].sort((a, b) => a - b);
+    expect(statuses).toEqual([200, 409]);
+
+    const [{ count }] = await ctx.dataSource.query(
+      `SELECT count(*)::int FROM audit_logs WHERE "entityId" = $1 AND action = 'APPLICATION_SUBMITTED'`,
+      [created.body.id],
+    );
+    expect(count).toBe(1);
+  });
+
+  it('serialises concurrent decisions on the same application', async () => {
+    const created = await create();
+    await ctx
+      .http()
+      .post(`/api/v1/applications/${created.body.id}/submit`)
+      .set('Authorization', bearer(salesToken))
+      .expect(200);
+    await waitForRiskReview(ctx, created.body.id, salesToken);
+    await ctx
+      .http()
+      .post(`/api/v1/applications/${created.body.id}/assign`)
+      .set('Authorization', bearer(adminToken))
+      .send({ reviewerId })
+      .expect(200);
+
+    const decide = (decision: string, reason: string) =>
+      ctx
+        .http()
+        .post(`/api/v1/applications/${created.body.id}/decision`)
+        .set('Authorization', bearer(reviewerToken))
+        .send({ decision, reason });
+
+    const [first, second] = await Promise.all([
+      decide('APPROVE', 'looks good'),
+      decide('REJECT', 'concurrent'),
+    ]);
+    const statuses = [first.status, second.status].sort((a, b) => a - b);
+    expect(statuses).toEqual([200, 409]);
+
+    const [{ count }] = await ctx.dataSource.query(
+      `SELECT count(*)::int FROM audit_logs WHERE "entityId" = $1 AND action = 'REVIEW_DECISION_RECORDED'`,
+      [created.body.id],
+    );
+    expect(count).toBe(1);
+  });
+
   it('cannot be assigned before submission', async () => {
     const created = await create();
 

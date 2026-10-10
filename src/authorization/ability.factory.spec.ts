@@ -5,10 +5,11 @@ import {
   assertCanUpdate,
 } from '../applications/application-access';
 import { MerchantApplication } from '../applications/entities/merchant-application.entity';
+import { AuditLog } from '../audit/audit-log.entity';
 import { type AuthenticatedUser } from '../auth/authenticated-user';
 import { UserRole } from '../users/user.entity';
 import { readScope } from './ability-scope';
-import { AbilityFactory, Action } from './ability.factory';
+import { AbilityFactory, Action, detectSubjectType } from './ability.factory';
 
 const SALES: AuthenticatedUser = { id: 'sales-1', email: 's1@test', role: UserRole.SALES };
 const OTHER_SALES: AuthenticatedUser = { id: 'sales-2', email: 's2@test', role: UserRole.SALES };
@@ -73,12 +74,13 @@ describe('AbilityFactory', () => {
   });
 
   describe('subject detection', () => {
-    const ability = factory.createForUser(ADMIN);
-
     it('raises on a subject it does not know', () => {
-      expect(() => ability.can(Action.Read, { createdById: SALES.id })).toThrow(
-        /Unknown authorization subject/,
-      );
+      expect(() => detectSubjectType(new Date())).toThrow(/Unknown authorization subject/);
+    });
+
+    it('identifies the subjects it owns', () => {
+      expect(detectSubjectType(new MerchantApplication())).toBe(MerchantApplication);
+      expect(detectSubjectType(new AuditLog())).toBe(AuditLog);
     });
   });
 

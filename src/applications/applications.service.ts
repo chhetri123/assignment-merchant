@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, FindOptionsWhere, Repository } from 'typeorm';
+import { DataSource, EntityManager, FindOptionsWhere, Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user';
 import { AuditAction } from '../audit/audit-log.entity';
 import { AuditLogResponseDto } from '../audit/dto/audit-log-response.dto';
@@ -30,6 +30,11 @@ import {
   MerchantApplication,
   RiskStatus,
 } from './entities/merchant-application.entity';
+
+const ASSIGNABLE_STATUSES: ApplicationStatus[] = [
+  ApplicationStatus.SUBMITTED,
+  ApplicationStatus.UNDER_REVIEW,
+];
 
 const DECISION_STATUS: Record<ReviewDecision, ApplicationStatus> = {
   [ReviewDecision.APPROVE]: ApplicationStatus.APPROVED,
@@ -127,15 +132,12 @@ export class ApplicationsService {
     id: string,
     dto: UpdateApplicationDto,
   ): Promise<ApplicationResponseDto> {
-    const { application, ability } = await this.loadForUser(user, id);
-    assertCanUpdate(ability, application);
-    assertEditable(application.status);
-
     const changes = toApplicationColumns(dto);
 
-    const saved = await this.dataSource.transaction(async (manager) => {
-      const repository = manager.getRepository(MerchantApplication);
-      const result = await repository.save(repository.merge(application, changes));
+    const saved = await this.mutateLocked(user, id, async ({ application, ability, manager }) => {
+      assertCanUpdate(ability, application);
+      assertEditable(application.status);
+      manager.getRepository(MerchantApplication).merge(application, changes);
 
       await this.audit.record(
         {
@@ -147,24 +149,18 @@ export class ApplicationsService {
         },
         manager,
       );
-
-      return result;
     });
 
     return ApplicationResponseDto.fromEntity(saved);
   }
 
   async submit(user: AuthenticatedUser, id: string): Promise<ApplicationResponseDto> {
-    const { application, ability } = await this.loadForUser(user, id);
-    assertCanSubmit(ability, application);
-    assertTransition(application.status, ApplicationStatus.SUBMITTED);
-
-    const saved = await this.dataSource.transaction(async (manager) => {
-      const repository = manager.getRepository(MerchantApplication);
+    const saved = await this.mutateLocked(user, id, async ({ application, ability, manager }) => {
+      assertCanSubmit(ability, application);
+      assertTransition(application.status, ApplicationStatus.SUBMITTED);
       application.status = ApplicationStatus.SUBMITTED;
       application.submittedAt = new Date();
       application.riskStatus = RiskStatus.PENDING;
-      const result = await repository.save(application);
 
       await this.audit.record(
         {
@@ -172,12 +168,10 @@ export class ApplicationsService {
           entityType: 'MerchantApplication',
           entityId: id,
           actor: user,
-          metadata: { submittedAt: result.submittedAt },
+          metadata: { submittedAt: application.submittedAt },
         },
         manager,
       );
-
-      return result;
     });
 
     // Enqueued after commit, so the worker cannot read a row that does not exist yet.
@@ -191,25 +185,21 @@ export class ApplicationsService {
     id: string,
     dto: AssignReviewerDto,
   ): Promise<ApplicationResponseDto> {
-    const { application } = await this.loadForUser(user, id);
-
+    // Looked up before the transaction so no query runs while the row is locked.
     const reviewer = await this.users.findActiveByIdAndRole(dto.reviewerId, UserRole.REVIEWER);
     if (!reviewer) {
       throw new BadRequestException('Reviewer must be an active user with the REVIEWER role');
     }
-    if (
-      ![ApplicationStatus.SUBMITTED, ApplicationStatus.UNDER_REVIEW].includes(application.status)
-    ) {
-      throw new BadRequestException(
-        `Applications in status ${application.status} cannot be assigned`,
-      );
-    }
 
-    const saved = await this.dataSource.transaction(async (manager) => {
-      const repository = manager.getRepository(MerchantApplication);
+    const saved = await this.mutateLocked(user, id, async ({ application, manager }) => {
+      if (!ASSIGNABLE_STATUSES.includes(application.status)) {
+        throw new BadRequestException(
+          `Applications in status ${application.status} cannot be assigned`,
+        );
+      }
+
       const previousReviewerId = application.assignedReviewerId;
       application.assignedReviewerId = reviewer.id;
-      const result = await repository.save(application);
 
       await this.audit.record(
         {
@@ -221,8 +211,6 @@ export class ApplicationsService {
         },
         manager,
       );
-
-      return result;
     });
 
     return ApplicationResponseDto.fromEntity(saved);
@@ -233,34 +221,18 @@ export class ApplicationsService {
     id: string,
     dto: ReviewDecisionDto,
   ): Promise<ApplicationResponseDto> {
-    const { application, ability } = await this.loadForUser(user, id);
-    assertCanDecide(ability, application);
-
     const nextStatus = DECISION_STATUS[dto.decision];
-    assertTransition(application.status, nextStatus);
 
     if (dto.decision !== ReviewDecision.APPROVE && !dto.reason) {
       throw new BadRequestException('A reason is required when rejecting or requesting info');
     }
 
-    const saved = await this.dataSource.transaction(async (manager) => {
-      const repository = manager.getRepository(MerchantApplication);
-
-      // Re-read under a row lock: two reviewers deciding at once would
-      // otherwise both pass the transition check above.
-      const locked = await repository.findOne({
-        where: { id },
-        lock: { mode: 'pessimistic_write' },
-      });
-      if (!locked) {
-        throw new NotFoundException('Application not found');
-      }
-      assertTransition(locked.status, nextStatus);
-
-      locked.status = nextStatus;
-      locked.decisionReason = dto.reason ?? null;
-      locked.decidedAt = new Date();
-      const result = await repository.save(locked);
+    const saved = await this.mutateLocked(user, id, async ({ application, ability, manager }) => {
+      assertCanDecide(ability, application);
+      assertTransition(application.status, nextStatus);
+      application.status = nextStatus;
+      application.decisionReason = dto.reason ?? null;
+      application.decidedAt = new Date();
 
       await this.audit.record(
         {
@@ -272,11 +244,41 @@ export class ApplicationsService {
         },
         manager,
       );
-
-      return result;
     });
 
     return ApplicationResponseDto.fromEntity(saved);
+  }
+
+  // Every write goes through here: the row is read once under a lock, and the
+  // authorization and state checks run on that locked row, so nothing can
+  // change between the check and the write.
+  // The lock is held until commit, so `mutate` must not do slow work such as
+  // calling another service.
+  private async mutateLocked(
+    user: AuthenticatedUser,
+    id: string,
+    mutate: (context: {
+      application: MerchantApplication;
+      ability: AppAbility;
+      manager: EntityManager;
+    }) => Promise<void>,
+  ): Promise<MerchantApplication> {
+    return this.dataSource.transaction(async (manager) => {
+      const repository = manager.getRepository(MerchantApplication);
+      const application = await repository.findOne({
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!application) {
+        throw new NotFoundException('Application not found');
+      }
+
+      const ability = this.abilityFactory.createForUser(user);
+      assertCanRead(ability, application);
+
+      await mutate({ application, ability, manager });
+      return repository.save(application);
+    });
   }
 
   private async loadForUser(

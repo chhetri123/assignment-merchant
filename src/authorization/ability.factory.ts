@@ -26,7 +26,7 @@ export type AppAbility = MongoAbility<[Action, Subjects]>;
 
 // Explicit instead of reading subject.constructor, so an unexpected subject
 // raises instead of silently matching no rule.
-function detectSubjectType(subject: object): ExtractSubjectType<Subjects> {
+export function detectSubjectType(subject: object): ExtractSubjectType<Subjects> {
   if (subject instanceof MerchantApplication) {
     return MerchantApplication;
   }
