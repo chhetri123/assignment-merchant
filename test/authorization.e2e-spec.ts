@@ -1,5 +1,5 @@
 import {
-  TestContext,
+  type TestContext,
   USERS,
   applicationPayload,
   bearer,

@@ -1,6 +1,6 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
-import { Action, AppAbility } from '../authorization/ability.factory';
-import { MerchantApplication } from './entities/merchant-application.entity';
+import { Action, type AppAbility } from '../authorization/ability.factory';
+import { type MerchantApplication } from './entities/merchant-application.entity';
 
 // 404 rather than 403, so ids are not disclosed.
 export function assertCanRead(ability: AppAbility, application: MerchantApplication): void {

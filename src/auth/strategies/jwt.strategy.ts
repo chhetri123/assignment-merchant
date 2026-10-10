@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { UsersService } from '../../users/users.service';
-import { AccessTokenPayload, AuthenticatedUser } from '../authenticated-user';
+import { type AuthenticatedUser, isAccessTokenPayload } from '../authenticated-user';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -19,9 +19,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   // Re-reads the user so deactivation applies before the token expires.
-  async validate(payload: AccessTokenPayload): Promise<AuthenticatedUser> {
+  async validate(payload: unknown): Promise<AuthenticatedUser> {
+    if (!isAccessTokenPayload(payload)) {
+      throw new UnauthorizedException('Token is no longer valid');
+    }
+
     const user = await this.users.findById(payload.sub);
-    if (payload.type !== 'access' || !user || !user.isActive || user.role !== payload.role) {
+    if (!user || !user.isActive || user.role !== payload.role) {
       throw new UnauthorizedException('Token is no longer valid');
     }
 

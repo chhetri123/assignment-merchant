@@ -5,7 +5,7 @@ import {
   assertCanUpdate,
 } from '../applications/application-access';
 import { MerchantApplication } from '../applications/entities/merchant-application.entity';
-import { AuthenticatedUser } from '../auth/authenticated-user';
+import { type AuthenticatedUser } from '../auth/authenticated-user';
 import { UserRole } from '../users/user.entity';
 import { readScope } from './ability-scope';
 import { AbilityFactory, Action } from './ability.factory';
@@ -37,8 +37,8 @@ describe('AbilityFactory', () => {
       const foreign = application(OTHER_SALES.id);
       expect(ability.can(Action.Read, foreign)).toBe(false);
       expect(ability.can(Action.Update, foreign)).toBe(false);
-      expect(() => assertCanRead(ability, foreign)).toThrow(NotFoundException);
-      expect(() => assertCanUpdate(ability, foreign)).toThrow(NotFoundException);
+      expect(() => { assertCanRead(ability, foreign); }).toThrow(NotFoundException);
+      expect(() => { assertCanUpdate(ability, foreign); }).toThrow(NotFoundException);
     });
 
     it('cannot assign or decide', () => {
@@ -62,7 +62,7 @@ describe('AbilityFactory', () => {
       expect(ability.can(Action.Decide, assigned)).toBe(true);
       expect(ability.can(Action.Decide, assignedToOther)).toBe(false);
       expect(ability.can(Action.Decide, unassigned)).toBe(false);
-      expect(() => assertCanDecide(ability, assignedToOther)).toThrow(ForbiddenException);
+      expect(() => { assertCanDecide(ability, assignedToOther); }).toThrow(ForbiddenException);
     });
 
     it('can read every application but not edit them', () => {

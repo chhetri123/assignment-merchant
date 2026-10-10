@@ -1,6 +1,6 @@
 import {
   TEST_PASSWORD,
-  TestContext,
+  type TestContext,
   USERS,
   bearer,
   createTestApp,

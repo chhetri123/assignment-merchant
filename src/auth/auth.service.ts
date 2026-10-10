@@ -5,7 +5,11 @@ import * as bcrypt from 'bcryptjs';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { User } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
-import { AccessTokenPayload, RefreshTokenPayload } from './authenticated-user';
+import {
+  type AccessTokenPayload,
+  type RefreshTokenPayload,
+  isRefreshTokenPayload,
+} from './authenticated-user';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { TokenPairDto } from './dto/token-pair.dto';
@@ -102,10 +106,10 @@ export class AuthService {
 
   private async verifyRefreshToken(token: string): Promise<RefreshTokenPayload> {
     try {
-      const payload = await this.jwt.verifyAsync<RefreshTokenPayload>(token, {
+      const payload: unknown = await this.jwt.verifyAsync(token, {
         secret: this.config.getOrThrow<string>('jwt.refreshSecret'),
       });
-      if (payload.type !== 'refresh' || !payload.jti) {
+      if (!isRefreshTokenPayload(payload)) {
         throw new Error('wrong token type');
       }
       return payload;

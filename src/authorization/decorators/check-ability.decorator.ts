@@ -1,5 +1,5 @@
 import { SetMetadata } from '@nestjs/common';
-import { Action, Subjects } from '../ability.factory';
+import { type Action, type Subjects } from '../ability.factory';
 
 export const ABILITY_RULES_KEY = 'ability_rules';
 

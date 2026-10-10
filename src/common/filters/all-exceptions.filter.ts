@@ -18,6 +18,31 @@ interface ErrorBody {
 }
 
 const PG_UNIQUE_VIOLATION = '23505';
+const LOWEST_SERVER_ERROR_STATUS = 500;
+
+// Nest puts the validation details on `message`; everything else is a string.
+function extractMessage(exception: HttpException): string | string[] {
+  const payload: string | object = exception.getResponse();
+
+  if (typeof payload === 'string') {
+    return payload;
+  }
+  if ('message' in payload) {
+    const { message } = payload;
+    if (typeof message === 'string' || Array.isArray(message)) {
+      return message;
+    }
+  }
+  return exception.message;
+}
+
+function statusLabel(status: number): string {
+  return HttpStatus[status] ?? 'ERROR';
+}
+
+function hasDriverCode(error: object): error is { code: string } {
+  return 'code' in error && typeof error.code === 'string';
+}
 
 // Logs internals, returns a safe shape.
 @Catch()
@@ -31,13 +56,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     const body = this.toErrorBody(exception, request.url);
 
-    if (body.statusCode >= HttpStatus.INTERNAL_SERVER_ERROR) {
+    if (body.statusCode >= LOWEST_SERVER_ERROR_STATUS) {
       this.logger.error(
         `${request.method} ${request.url} -> ${body.statusCode}`,
         exception instanceof Error ? exception.stack : String(exception),
       );
     } else {
-      this.logger.warn(`${request.method} ${request.url} -> ${body.statusCode}: ${body.message}`);
+      const summary = Array.isArray(body.message) ? body.message.join('; ') : body.message;
+      this.logger.warn(`${request.method} ${request.url} -> ${body.statusCode}: ${summary}`);
     }
 
     response.status(body.statusCode).json(body);
@@ -48,23 +74,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
-      const payload = exception.getResponse();
-      const message =
-        typeof payload === 'string'
-          ? payload
-          : ((payload as Record<string, unknown>).message as string | string[]);
-
       return {
         statusCode: status,
-        message: message ?? exception.message,
-        error: HttpStatus[status] ?? 'ERROR',
+        message: extractMessage(exception),
+        error: statusLabel(status),
         path,
         timestamp,
       };
     }
 
     if (exception instanceof QueryFailedError) {
-      const driverCode = (exception as QueryFailedError & { code?: string }).code;
+      const driverCode = hasDriverCode(exception) ? exception.code : undefined;
       if (driverCode === PG_UNIQUE_VIOLATION) {
         return {
           statusCode: HttpStatus.CONFLICT,

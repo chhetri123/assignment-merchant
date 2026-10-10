@@ -25,7 +25,7 @@ const isSensitive = (key: string): boolean => {
 };
 
 // Deep copy with sensitive leaves replaced.
-export function redact<T>(value: T, depth = 0): unknown {
+export function redact(value: unknown, depth = 0): unknown {
   if (depth > 6 || value === null || value === undefined) {
     return value;
   }

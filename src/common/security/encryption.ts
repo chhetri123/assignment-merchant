@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
-import { ValueTransformer } from 'typeorm';
+import { type ValueTransformer } from 'typeorm';
 
 // Applied to ownerTaxId today. Bank account/routing numbers and KYB identity
 // documents need the same treatment when those fields are added; card data

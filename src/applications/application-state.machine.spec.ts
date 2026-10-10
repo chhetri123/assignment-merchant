@@ -31,11 +31,10 @@ describe('application state machine', () => {
   });
 
   it('throws a conflict on an invalid transition', () => {
-    expect(() => assertTransition(ApplicationStatus.APPROVED, ApplicationStatus.REJECTED)).toThrow(
+    expect(() => { assertTransition(ApplicationStatus.APPROVED, ApplicationStatus.REJECTED); }).toThrow(
       ConflictException,
     );
-    expect(() =>
-      assertTransition(ApplicationStatus.DRAFT, ApplicationStatus.SUBMITTED),
+    expect(() => { assertTransition(ApplicationStatus.DRAFT, ApplicationStatus.SUBMITTED); },
     ).not.toThrow();
   });
 
@@ -45,6 +44,6 @@ describe('application state machine', () => {
     expect(isEditable(ApplicationStatus.SUBMITTED)).toBe(false);
     expect(isEditable(ApplicationStatus.UNDER_REVIEW)).toBe(false);
     expect(isEditable(ApplicationStatus.APPROVED)).toBe(false);
-    expect(() => assertEditable(ApplicationStatus.SUBMITTED)).toThrow(ConflictException);
+    expect(() => { assertEditable(ApplicationStatus.SUBMITTED); }).toThrow(ConflictException);
   });
 });

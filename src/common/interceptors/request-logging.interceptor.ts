@@ -1,5 +1,5 @@
 import { CallHandler, ExecutionContext, Injectable, Logger, NestInterceptor } from '@nestjs/common';
-import { Request } from 'express';
+import { type Request } from 'express';
 import { Observable, tap } from 'rxjs';
 import { redact } from '../security/redact';
 
@@ -12,7 +12,7 @@ export class RequestLoggingInterceptor implements NestInterceptor {
     const request = context.switchToHttp().getRequest<Request>();
     const startedAt = Date.now();
     const { method, url } = request;
-    const actorId = (request as Request & { user?: { id?: string } }).user?.id ?? 'anonymous';
+    const actorId = request.user?.id ?? 'anonymous';
 
     return next.handle().pipe(
       tap({

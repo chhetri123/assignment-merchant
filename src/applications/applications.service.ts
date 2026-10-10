@@ -9,8 +9,9 @@ import { PaginatedDto } from '../common/dto/pagination.dto';
 import { RiskReviewQueue } from '../risk/risk-review.queue';
 import { UserRole } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
-import { AbilityFactory, Action, AppAbility } from '../authorization/ability.factory';
+import { AbilityFactory, type AppAbility } from '../authorization/ability.factory';
 import { readScope } from '../authorization/ability-scope';
+import { toApplicationColumns } from './application-columns';
 import {
   assertCanDecide,
   assertCanRead,
@@ -50,16 +51,13 @@ export class ApplicationsService {
 
   async create(user: AuthenticatedUser, dto: CreateApplicationDto): Promise<ApplicationResponseDto> {
     const saved = await this.dataSource.transaction(async (manager) => {
-      const application = manager.getRepository(MerchantApplication).create({
-        ...dto,
-        requestedMonthlyVolume: dto.requestedMonthlyVolume.toFixed(2),
-        averageTicketSize: dto.averageTicketSize.toFixed(2),
-        createdById: user.id,
-        status: ApplicationStatus.DRAFT,
-        riskStatus: RiskStatus.NOT_STARTED,
-      });
+      const repository = manager.getRepository(MerchantApplication);
+      const application = repository.create(toApplicationColumns(dto));
+      application.createdById = user.id;
+      application.status = ApplicationStatus.DRAFT;
+      application.riskStatus = RiskStatus.NOT_STARTED;
 
-      const result = await manager.getRepository(MerchantApplication).save(application);
+      const result = await repository.save(application);
       await this.audit.record(
         {
           action: AuditAction.APPLICATION_CREATED,
@@ -133,13 +131,7 @@ export class ApplicationsService {
     assertCanUpdate(ability, application);
     assertEditable(application.status);
 
-    const changes: Record<string, unknown> = { ...dto };
-    if (dto.requestedMonthlyVolume !== undefined) {
-      changes.requestedMonthlyVolume = dto.requestedMonthlyVolume.toFixed(2);
-    }
-    if (dto.averageTicketSize !== undefined) {
-      changes.averageTicketSize = dto.averageTicketSize.toFixed(2);
-    }
+    const changes = toApplicationColumns(dto);
 
     const saved = await this.dataSource.transaction(async (manager) => {
       const repository = manager.getRepository(MerchantApplication);

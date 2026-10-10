@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { AuthenticatedUser } from '../../auth/authenticated-user';
+import { type Request } from 'express';
 import { AbilityFactory } from '../ability.factory';
 import { ABILITY_RULES_KEY, RequiredRule } from '../decorators/check-ability.decorator';
 
@@ -12,7 +12,7 @@ export class PoliciesGuard implements CanActivate {
   ) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const rules = this.reflector.getAllAndOverride<RequiredRule[]>(ABILITY_RULES_KEY, [
+    const rules = this.reflector.getAllAndOverride<RequiredRule[] | undefined>(ABILITY_RULES_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
@@ -21,7 +21,7 @@ export class PoliciesGuard implements CanActivate {
       return true;
     }
 
-    const user = context.switchToHttp().getRequest().user as AuthenticatedUser | undefined;
+    const { user } = context.switchToHttp().getRequest<Request>();
     if (!user) {
       throw new ForbiddenException('Authentication required');
     }

@@ -1,6 +1,6 @@
 import { ForbiddenException } from '@nestjs/common';
-import { FindOptionsWhere, ObjectLiteral } from 'typeorm';
-import { Action, AppAbility, Subjects } from './ability.factory';
+import { type FindOptionsWhere, type ObjectLiteral } from 'typeorm';
+import { Action, type AppAbility, type Subjects } from './ability.factory';
 
 // Builds the list query's where clause from the caller's own read rule.
 // Only flat equality conditions are supported; anything else fails closed.

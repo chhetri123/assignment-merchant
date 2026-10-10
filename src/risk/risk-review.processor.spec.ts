@@ -1,5 +1,6 @@
-import { Job } from 'bullmq';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Test } from '@nestjs/testing';
+import { DataSource } from 'typeorm';
 import {
   ApplicationStatus,
   MerchantApplication,
@@ -8,8 +9,7 @@ import {
 import { AuditAction } from '../audit/audit-log.entity';
 import { AuditService } from '../audit/audit.service';
 import { RiskProviderService } from './risk-provider.service';
-import { RiskReviewProcessor } from './risk-review.processor';
-import { RiskReviewJobData } from './risk.constants';
+import { RiskReviewProcessor, isFinalAttempt } from './risk-review.processor';
 
 function buildApplication(overrides: Partial<MerchantApplication> = {}): MerchantApplication {
   return Object.assign(new MerchantApplication(), {
@@ -22,50 +22,50 @@ function buildApplication(overrides: Partial<MerchantApplication> = {}): Merchan
   });
 }
 
-function buildJob(attemptsMade = 0, attempts = 3): Job<RiskReviewJobData> {
-  return {
-    id: 'job-1',
-    data: { applicationId: 'app-1', submittedAt: new Date().toISOString() },
-    attemptsMade,
-    opts: { attempts },
-  } as Job<RiskReviewJobData>;
-}
-
 describe('RiskReviewProcessor', () => {
-  let repository: jest.Mocked<Pick<Repository<MerchantApplication>, 'findOne' | 'save'>>;
-  let provider: jest.Mocked<Pick<RiskProviderService, 'evaluate'>>;
-  let audit: jest.Mocked<Pick<AuditService, 'record'>>;
+  const findOne = jest.fn<Promise<MerchantApplication | null>, [unknown]>();
+  const save = jest.fn((entity: MerchantApplication) => Promise.resolve(entity));
+  const evaluate =
+    jest.fn<Promise<Awaited<ReturnType<RiskProviderService['evaluate']>>>, [unknown]>();
+  const record = jest.fn<Promise<void>, [unknown, unknown]>();
+
   let processor: RiskReviewProcessor;
 
-  beforeEach(() => {
-    repository = { findOne: jest.fn(), save: jest.fn((entity) => entity) } as never;
-    provider = { evaluate: jest.fn() } as never;
-    audit = { record: jest.fn() } as never;
+  beforeEach(async () => {
+    jest.resetAllMocks();
 
-    const manager = { getRepository: () => repository } as unknown as EntityManager;
+    const repository = { findOne, save };
+    const manager = { getRepository: () => repository };
     const dataSource = {
-      transaction: (runner: (m: EntityManager) => Promise<unknown>) => runner(manager),
-    } as DataSource;
+      transaction: (runner: (m: typeof manager) => Promise<unknown>) => runner(manager),
+    };
 
-    processor = new RiskReviewProcessor(
-      repository as never,
-      provider as never,
-      audit as never,
-      dataSource,
-    );
+    // Mocks are supplied through Nest DI by token, so nothing has to be cast
+    // into the full TypeORM repository or service classes.
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        RiskReviewProcessor,
+        { provide: getRepositoryToken(MerchantApplication), useValue: repository },
+        { provide: RiskProviderService, useValue: { evaluate } },
+        { provide: AuditService, useValue: { record } },
+        { provide: DataSource, useValue: dataSource },
+      ],
+    }).compile();
+
+    processor = moduleRef.get(RiskReviewProcessor);
   });
 
   it('persists the assessment and moves the application to review', async () => {
     const application = buildApplication();
-    repository.findOne.mockResolvedValue(application);
-    provider.evaluate.mockResolvedValue({
+    findOne.mockResolvedValue(application);
+    evaluate.mockResolvedValue({
       reference: 'kyb_1',
       score: 82,
       status: RiskStatus.PASSED,
       reason: 'matched',
     });
 
-    const result = await processor.process(buildJob());
+    const result = await processor.review('app-1', 'job-1', 1);
 
     expect(result).toEqual({ status: RiskStatus.PASSED });
     expect(application.status).toBe(ApplicationStatus.UNDER_REVIEW);
@@ -73,46 +73,54 @@ describe('RiskReviewProcessor', () => {
     expect(application.riskScore).toBe(82);
     expect(application.riskReference).toBe('kyb_1');
     expect(application.riskCheckedAt).toBeInstanceOf(Date);
-    expect(audit.record).toHaveBeenCalledWith(
+    expect(record).toHaveBeenCalledWith(
       expect.objectContaining({ action: AuditAction.RISK_REVIEW_COMPLETED }),
       expect.anything(),
     );
   });
 
   it('skips an application that is no longer SUBMITTED', async () => {
-    repository.findOne.mockResolvedValue(
+    findOne.mockResolvedValue(
       buildApplication({ status: ApplicationStatus.UNDER_REVIEW, riskStatus: RiskStatus.PASSED }),
     );
 
-    const result = await processor.process(buildJob(1));
+    const result = await processor.review('app-1', 'job-1', 2);
 
     expect(result).toEqual({ skipped: true });
-    expect(provider.evaluate).not.toHaveBeenCalled();
-    expect(repository.save).not.toHaveBeenCalled();
-    expect(audit.record).not.toHaveBeenCalled();
+    expect(evaluate).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
   });
 
   it('skips a deleted application instead of retrying forever', async () => {
-    repository.findOne.mockResolvedValue(null);
+    findOne.mockResolvedValue(null);
 
-    await expect(processor.process(buildJob())).resolves.toEqual({ skipped: true });
-    expect(provider.evaluate).not.toHaveBeenCalled();
+    await expect(processor.review('app-1', 'job-1', 1)).resolves.toEqual({ skipped: true });
+    expect(evaluate).not.toHaveBeenCalled();
   });
 
-  it('leaves the application pending while retries remain', async () => {
-    await processor.onFailed(buildJob(1), new Error('provider timeout'));
-
-    expect(repository.save).not.toHaveBeenCalled();
+  it('treats only the last attempt as final', () => {
+    expect(isFinalAttempt(1, 3)).toBe(false);
+    expect(isFinalAttempt(2, 3)).toBe(false);
+    expect(isFinalAttempt(3, 3)).toBe(true);
   });
 
-  it('parks the application for manual review after the last attempt', async () => {
+  it('parks the application for manual review when the provider gives up', async () => {
     const application = buildApplication();
-    repository.findOne.mockResolvedValue(application);
+    findOne.mockResolvedValue(application);
 
-    await processor.onFailed(buildJob(3), new Error('provider timeout'));
+    await processor.parkForManualReview('app-1', 'job-1', 3);
 
     expect(application.riskStatus).toBe(RiskStatus.MANUAL_REVIEW);
     expect(application.status).toBe(ApplicationStatus.UNDER_REVIEW);
-    expect(audit.record).toHaveBeenCalled();
+    expect(record).toHaveBeenCalled();
+  });
+
+  it('leaves an application alone if it already moved on', async () => {
+    findOne.mockResolvedValue(buildApplication({ status: ApplicationStatus.APPROVED }));
+
+    await processor.parkForManualReview('app-1', 'job-1', 3);
+
+    expect(save).not.toHaveBeenCalled();
   });
 });

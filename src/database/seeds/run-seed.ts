@@ -34,7 +34,7 @@ async function seed(): Promise<void> {
   await dataSource.destroy();
 }
 
-seed().catch((error) => {
+seed().catch((error: unknown) => {
   console.error('seed failed', error);
   process.exit(1);
 });

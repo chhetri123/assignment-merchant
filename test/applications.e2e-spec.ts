@@ -1,5 +1,5 @@
 import {
-  TestContext,
+  type TestContext,
   USERS,
   applicationPayload,
   bearer,
@@ -7,7 +7,14 @@ import {
   login,
   resetDatabase,
   waitForRiskReview,
+  jsonBody,
 } from './utils/test-app';
+
+interface AuditEntry {
+  action: string;
+  actorRole: string;
+  metadata: { riskReference?: string };
+}
 
 describe('Application lifecycle (e2e)', () => {
   let ctx: TestContext;
@@ -95,14 +102,15 @@ describe('Application lifecycle (e2e)', () => {
       .set('Authorization', bearer(adminToken))
       .expect(200);
 
-    const actions = trail.body.map((entry: { action: string }) => entry.action);
+    const entries = jsonBody<AuditEntry[]>(trail);
+    const actions = entries.map((entry) => entry.action);
     expect(actions).toEqual([
       'APPLICATION_CREATED',
       'APPLICATION_SUBMITTED',
       'RISK_REVIEW_COMPLETED',
     ]);
 
-    const riskEntry = trail.body[2];
+    const riskEntry = entries[2];
     expect(riskEntry.actorRole).toBe('SYSTEM');
     expect(riskEntry.metadata.riskReference).toMatch(/^kyb_/);
   });

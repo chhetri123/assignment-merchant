@@ -1,7 +1,7 @@
-import { INestApplication, ValidationPipe, VersioningType } from '@nestjs/common';
+import { type INestApplication, ValidationPipe, VersioningType } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import * as bcrypt from 'bcryptjs';
-import Redis from 'ioredis';
+import type Redis from 'ioredis';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../../src/app.module';
@@ -85,6 +85,12 @@ export async function login(ctx: TestContext, email: string) {
   return response.body as { accessToken: string; refreshToken: string; user: { id: string } };
 }
 
+// supertest types the response body as `any`; this is the only place that
+// boundary is narrowed, so specs stay type-safe.
+export function jsonBody<T>(response: request.Response): T {
+  return response.body as T;
+}
+
 export function bearer(token: string): string {
   return `Bearer ${token}`;
 }
@@ -109,19 +115,31 @@ export const applicationPayload = (overrides: Record<string, unknown> = {}) => (
   ...overrides,
 });
 
+export interface ApplicationResponse {
+  id: string;
+  status: string;
+  riskStatus: string;
+  riskScore: number | null;
+  riskCheckedAt: string | null;
+}
+
 // Polls until the worker has moved the application off PENDING.
 export async function waitForRiskReview(
   ctx: TestContext,
   id: string,
   token: string,
   timeoutMs = 15000,
-): Promise<Record<string, unknown>> {
+): Promise<ApplicationResponse> {
   const deadline = Date.now() + timeoutMs;
 
   while (Date.now() < deadline) {
-    const response = await ctx.http().get(`/api/v1/applications/${id}`).set('Authorization', bearer(token));
-    if (response.body.riskStatus !== 'PENDING') {
-      return response.body;
+    const response = await ctx
+      .http()
+      .get(`/api/v1/applications/${id}`)
+      .set('Authorization', bearer(token));
+    const application = jsonBody<ApplicationResponse>(response);
+    if (application.riskStatus !== 'PENDING') {
+      return application;
     }
     await new Promise((resolve) => setTimeout(resolve, 250));
   }

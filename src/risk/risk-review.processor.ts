@@ -1,7 +1,7 @@
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Job } from 'bullmq';
+import { type Job } from 'bullmq';
 import { DataSource, Repository } from 'typeorm';
 import { assertTransition } from '../applications/application-state.machine';
 import {
@@ -12,7 +12,13 @@ import {
 import { AuditAction } from '../audit/audit-log.entity';
 import { AuditService } from '../audit/audit.service';
 import { RiskProviderService } from './risk-provider.service';
-import { RISK_QUEUE, RiskReviewJobData } from './risk.constants';
+import { RISK_QUEUE, type RiskReviewJobData } from './risk.constants';
+
+export type RiskReviewOutcome = { status: RiskStatus } | { skipped: true };
+
+export function isFinalAttempt(attemptsMade: number, attempts: number): boolean {
+  return attemptsMade >= attempts;
+}
 
 @Processor(RISK_QUEUE, { concurrency: 5 })
 export class RiskReviewProcessor extends WorkerHost {
@@ -28,20 +34,24 @@ export class RiskReviewProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<RiskReviewJobData>): Promise<{ status: RiskStatus } | { skipped: true }> {
-    const { applicationId } = job.data;
+  // Thin adapter: everything testable lives in review()/parkForManualReview().
+  async process(job: Job<RiskReviewJobData>): Promise<RiskReviewOutcome> {
+    return this.review(job.data.applicationId, job.id ?? 'unknown', job.attemptsMade + 1);
+  }
+
+  async review(applicationId: string, jobId: string, attempt: number): Promise<RiskReviewOutcome> {
     const application = await this.applications.findOne({ where: { id: applicationId } });
 
     if (!application) {
-      // Nothing to retry for: fail the job without re-queueing.
-      this.logger.warn(`Application ${applicationId} no longer exists, dropping job ${job.id}`);
+      // Nothing to retry for: drop the job instead of re-queueing.
+      this.logger.warn(`Application ${applicationId} no longer exists, dropping job ${jobId}`);
       return { skipped: true };
     }
 
-    // Idempotency guard: a retry or redelivery after a successful run finds the
-    // application already moved on and does nothing.
+    // A retry or redelivery after a successful run finds the application
+    // already moved on and does nothing.
     if (application.status !== ApplicationStatus.SUBMITTED) {
-      this.logger.log(`Application ${applicationId} is ${application.status}, skipping job ${job.id}`);
+      this.logger.log(`Application ${applicationId} is ${application.status}, skipping ${jobId}`);
       return { skipped: true };
     }
 
@@ -65,11 +75,11 @@ export class RiskReviewProcessor extends WorkerHost {
           entityType: 'MerchantApplication',
           entityId: applicationId,
           metadata: {
-            jobId: job.id,
+            jobId,
             riskStatus: assessment.status,
             riskScore: assessment.score,
             riskReference: assessment.reference,
-            attempt: job.attemptsMade + 1,
+            attempt,
           },
         },
         manager,
@@ -79,22 +89,11 @@ export class RiskReviewProcessor extends WorkerHost {
     return { status: assessment.status };
   }
 
-  // Last attempt failed: park the application for a human instead of leaving
-  // it stuck in PENDING forever.
-  @OnWorkerEvent('failed')
-  async onFailed(job: Job<RiskReviewJobData>, error: Error): Promise<void> {
-    const attempts = job.opts.attempts ?? 1;
-    this.logger.warn(
-      `Risk job ${job.id} failed on attempt ${job.attemptsMade}/${attempts}: ${error.message}`,
-    );
-
-    if (job.attemptsMade < attempts) {
-      return;
-    }
-
+  // Park the application for a human instead of leaving it PENDING forever.
+  async parkForManualReview(applicationId: string, jobId: string, attempts: number): Promise<void> {
     await this.dataSource.transaction(async (manager) => {
       const repository = manager.getRepository(MerchantApplication);
-      const application = await repository.findOne({ where: { id: job.data.applicationId } });
+      const application = await repository.findOne({ where: { id: applicationId } });
       if (!application || application.status !== ApplicationStatus.SUBMITTED) {
         return;
       }
@@ -110,10 +109,23 @@ export class RiskReviewProcessor extends WorkerHost {
           action: AuditAction.RISK_REVIEW_COMPLETED,
           entityType: 'MerchantApplication',
           entityId: application.id,
-          metadata: { jobId: job.id, riskStatus: RiskStatus.MANUAL_REVIEW, attempts },
+          metadata: { jobId, riskStatus: RiskStatus.MANUAL_REVIEW, attempts },
         },
         manager,
       );
     });
+  }
+
+  @OnWorkerEvent('failed')
+  async onFailed(job: Job<RiskReviewJobData>, error: Error): Promise<void> {
+    const attempts = job.opts.attempts ?? 1;
+    const jobId = job.id ?? 'unknown';
+    this.logger.warn(
+      `Risk job ${jobId} failed on attempt ${job.attemptsMade}/${attempts}: ${error.message}`,
+    );
+
+    if (isFinalAttempt(job.attemptsMade, attempts)) {
+      await this.parkForManualReview(job.data.applicationId, jobId, attempts);
+    }
   }
 }
