@@ -13,6 +13,8 @@ import { AuthenticatedUser } from '../auth/authenticated-user';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Action } from '../authorization/ability.factory';
 import { CheckAbility } from '../authorization/decorators/check-ability.decorator';
+import { AuditLog } from '../audit/audit-log.entity';
+import { AuditLogResponseDto } from '../audit/dto/audit-log-response.dto';
 import { PaginatedDto } from '../common/dto/pagination.dto';
 import { ApplicationsService } from './applications.service';
 import { ApplicationResponseDto } from './dto/application-response.dto';
@@ -60,6 +62,17 @@ export class ApplicationsController {
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<ApplicationResponseDto> {
     return this.applications.findOne(user, id);
+  }
+
+  @Get(':id/audit')
+  @CheckAbility({ action: Action.Read, subject: AuditLog })
+  @ApiOperation({ summary: 'Audit trail of an application (ADMIN and REVIEWER)' })
+  @ApiOkResponse({ type: AuditLogResponseDto, isArray: true })
+  auditTrail(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<AuditLogResponseDto[]> {
+    return this.applications.findAuditTrail(user, id);
   }
 
   @Patch(':id')

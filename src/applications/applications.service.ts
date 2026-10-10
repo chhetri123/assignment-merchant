@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, FindOptionsWhere, Repository } from 'typeorm';
 import { AuthenticatedUser } from '../auth/authenticated-user';
 import { AuditAction } from '../audit/audit-log.entity';
+import { AuditLogResponseDto } from '../audit/dto/audit-log-response.dto';
 import { AuditService } from '../audit/audit.service';
 import { PaginatedDto } from '../common/dto/pagination.dto';
 import { RiskReviewQueue } from '../risk/risk-review.queue';
@@ -79,6 +80,12 @@ export class ApplicationsService {
   async findOne(user: AuthenticatedUser, id: string): Promise<ApplicationResponseDto> {
     const { application } = await this.loadForUser(user, id);
     return ApplicationResponseDto.fromEntity(application);
+  }
+
+  async findAuditTrail(user: AuthenticatedUser, id: string): Promise<AuditLogResponseDto[]> {
+    await this.loadForUser(user, id);
+    const logs = await this.audit.findForEntity('MerchantApplication', id);
+    return logs.map((log) => AuditLogResponseDto.fromEntity(log));
   }
 
   async list(

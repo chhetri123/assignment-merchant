@@ -9,6 +9,7 @@ import {
   UpdateDateColumn,
   VersionColumn,
 } from 'typeorm';
+import { encryptedColumn } from '../../common/security/encryption';
 import { User } from '../../users/user.entity';
 
 export enum ApplicationStatus {
@@ -59,8 +60,8 @@ export class MerchantApplication {
   @Column({ type: 'varchar', length: 32 })
   ownerPhone: string;
 
-  // Encrypted at rest, masked on read.
-  @Column({ type: 'text', nullable: true })
+  // AES-256-GCM at rest, masked on read.
+  @Column({ type: 'text', nullable: true, transformer: encryptedColumn })
   ownerTaxId: string | null;
 
   @Column({ type: 'varchar', length: 160 })
