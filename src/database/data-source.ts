@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { DataSource, DataSourceOptions } from 'typeorm';
 
-// Shared by the TypeORM CLI (migrations) and the Nest TypeOrmModule.
+// Used by both the TypeORM CLI and TypeOrmModule.
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
   host: process.env.DB_HOST ?? 'localhost',

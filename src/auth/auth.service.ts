@@ -15,7 +15,7 @@ import { RefreshTokenStore } from './refresh-token.store';
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
-  // Compared against when the email is unknown, to keep login timing flat.
+  // Keeps login timing flat when the email is unknown.
   private readonly dummyHash = bcrypt.hashSync(randomBytes(16).toString('hex'), 10);
 
   constructor(
@@ -29,8 +29,7 @@ export class AuthService {
     const user = await this.users.findByEmailWithPassword(dto.email);
     const passwordMatches = await bcrypt.compare(dto.password, user?.passwordHash ?? this.dummyHash);
 
-    // One error for unknown email, wrong password and disabled account so the
-    // endpoint cannot be used to enumerate users.
+    // Same error every time, so users cannot be enumerated.
     if (!user || !user.isActive || !passwordMatches) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -38,8 +37,7 @@ export class AuthService {
     return this.issueTokens(user);
   }
 
-  // Refresh tokens are single-use: the presented session is replaced by a new
-  // one. A replayed token means the old one leaked, so all sessions are dropped.
+  // Single-use. A replay means it leaked, so drop every session.
   async refresh(dto: RefreshTokenDto): Promise<TokenPairDto> {
     const payload = await this.verifyRefreshToken(dto.refreshToken);
 

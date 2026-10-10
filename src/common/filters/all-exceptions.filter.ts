@@ -19,7 +19,7 @@ interface ErrorBody {
 
 const PG_UNIQUE_VIOLATION = '23505';
 
-// Internal details are logged, never returned to the caller.
+// Logs internals, returns a safe shape.
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);

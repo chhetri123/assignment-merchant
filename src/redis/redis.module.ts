@@ -14,7 +14,7 @@ export const REDIS_CLIENT = 'REDIS_CLIENT';
         new Redis({
           host: config.getOrThrow<string>('redis.host'),
           port: config.getOrThrow<number>('redis.port'),
-          // Required by BullMQ, which shares this connection config.
+          // BullMQ requires this.
           maxRetriesPerRequest: null,
         }),
     },

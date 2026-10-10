@@ -22,7 +22,7 @@ export class User {
   @Column({ type: 'varchar', length: 255 })
   email: string;
 
-  // Never selected by default so it cannot leak through a generic find().
+  // Not selected by default, so a plain find() cannot leak it.
   @Column({ type: 'varchar', length: 255, select: false })
   passwordHash: string;
 

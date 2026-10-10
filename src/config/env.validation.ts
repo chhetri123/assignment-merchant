@@ -2,7 +2,7 @@ import { plainToInstance } from 'class-transformer';
 import { IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Matches, validateSync } from 'class-validator';
 import { Type } from 'class-transformer';
 
-// Fail fast on boot instead of hitting a missing secret at request time.
+// Fails the boot instead of a request later.
 class EnvironmentVariables {
   @IsOptional()
   @IsIn(['development', 'test', 'production'])

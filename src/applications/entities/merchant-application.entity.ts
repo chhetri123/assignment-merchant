@@ -59,7 +59,7 @@ export class MerchantApplication {
   @Column({ type: 'varchar', length: 32 })
   ownerPhone: string;
 
-  // Encrypted at rest and masked on read; see docs/security.md.
+  // Encrypted at rest, masked on read.
   @Column({ type: 'text', nullable: true })
   ownerTaxId: string | null;
 
@@ -135,7 +135,7 @@ export class MerchantApplication {
   @Column({ type: 'timestamptz', nullable: true })
   submittedAt: Date | null;
 
-  // Optimistic lock: guards against two reviewers deciding concurrently.
+  // Optimistic lock against concurrent decisions.
   @VersionColumn()
   version: number;
 

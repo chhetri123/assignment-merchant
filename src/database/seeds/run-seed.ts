@@ -3,7 +3,7 @@ import * as bcrypt from 'bcryptjs';
 import dataSource from '../data-source';
 import { User, UserRole } from '../../users/user.entity';
 
-// Idempotent local-development seed: one user per role.
+// One user per role, safe to re-run.
 const SEED_USERS: Array<Pick<User, 'email' | 'fullName' | 'role'>> = [
   { email: 'admin@merchant.test', fullName: 'Ada Admin', role: UserRole.ADMIN },
   { email: 'reviewer@merchant.test', fullName: 'Rhea Reviewer', role: UserRole.REVIEWER },

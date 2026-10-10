@@ -2,8 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import Redis from 'ioredis';
 import { REDIS_CLIENT } from '../redis/redis.module';
 
-// One Redis key per active refresh token (session). Only the token id is
-// stored, never the token itself, and the key TTL matches the token lifetime.
+// One key per session, holding the token id only. TTL = token lifetime.
 @Injectable()
 export class RefreshTokenStore {
   constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
@@ -24,7 +23,7 @@ export class RefreshTokenStore {
     await this.redis.del(this.key(userId, tokenId));
   }
 
-  // Used when a rotated token is replayed: all sessions of that user are dropped.
+  // Called when a rotated token is replayed.
   async revokeAll(userId: string): Promise<number> {
     let cursor = '0';
     let removed = 0;

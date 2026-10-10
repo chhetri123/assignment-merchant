@@ -18,8 +18,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  // Re-reads the user so deactivated accounts and role changes take effect
-  // immediately instead of living on until the token expires.
+  // Re-reads the user so deactivation applies before the token expires.
   async validate(payload: AccessTokenPayload): Promise<AuthenticatedUser> {
     const user = await this.users.findById(payload.sub);
     if (payload.type !== 'access' || !user || !user.isActive || user.role !== payload.role) {

@@ -7,7 +7,7 @@ import { User, UserRole } from './user.entity';
 export class UsersService {
   constructor(@InjectRepository(User) private readonly users: Repository<User>) {}
 
-  // passwordHash is `select: false`, so it must be asked for explicitly.
+  // passwordHash is `select: false`, so ask for it explicitly.
   findByEmailWithPassword(email: string): Promise<User | null> {
     return this.users.findOne({
       where: { email: email.toLowerCase() },

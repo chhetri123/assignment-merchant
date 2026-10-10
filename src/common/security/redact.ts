@@ -1,31 +1,30 @@
-// Matched case-insensitively as substrings, so `taxid` covers `ownerTaxId` too.
-export const SENSITIVE_KEYS = [
-  'password',
-  'newpassword',
-  'currentpassword',
-  'token',
-  'accesstoken',
-  'refreshtoken',
-  'authorization',
-  'secret',
-  'apikey',
-  'taxid',
-  'tax_id',
-  'ssn',
-  'accountnumber',
-  'routingnumber',
-  'cardnumber',
-  'cvv',
+// Matched on snake_case token boundaries, otherwise "ssn" hits `businessName`.
+export const SENSITIVE_PATTERNS: RegExp[] = [
+  /pass(word|phrase)?/,
+  /token/,
+  /secret/,
+  /(^|_)api_?key(_|$)/,
+  /authorization/,
+  /(^|_)tax_?id(_|$)/,
+  /(^|_)ssn(_|$)/,
+  /(account|routing|card)_?number/,
+  /(^|_)cvv(_|$)/,
 ];
 
 export const REDACTED = '[REDACTED]';
 
+const toSnakeCase = (key: string): string =>
+  key
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/[^a-zA-Z0-9]+/g, '_')
+    .toLowerCase();
+
 const isSensitive = (key: string): boolean => {
-  const normalized = key.toLowerCase().replace(/[^a-z0-9_]/g, '');
-  return SENSITIVE_KEYS.some((sensitive) => normalized.includes(sensitive));
+  const normalized = toSnakeCase(key);
+  return SENSITIVE_PATTERNS.some((pattern) => pattern.test(normalized));
 };
 
-// Deep copy with sensitive leaves replaced. Depth-capped to keep logs readable.
+// Deep copy with sensitive leaves replaced.
 export function redact<T>(value: T, depth = 0): unknown {
   if (depth > 6 || value === null || value === undefined) {
     return value;
@@ -52,7 +51,7 @@ export function redact<T>(value: T, depth = 0): unknown {
   return value;
 }
 
-// Keeps only the last `visible` characters, e.g. `***6789`.
+// Keeps the last few characters only, e.g. `***6789`.
 export function maskTail(value: string | null | undefined, visible = 4): string | null {
   if (!value) {
     return null;

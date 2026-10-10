@@ -11,8 +11,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
   imports: [
     UsersModule,
     PassportModule,
-    // Secrets and lifetimes are passed per sign/verify call because access and
-    // refresh tokens use different ones.
+    // Secrets differ per token type, so they are passed at call time.
     JwtModule.register({}),
   ],
   controllers: [AuthController],

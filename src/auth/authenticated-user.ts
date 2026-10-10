@@ -1,6 +1,6 @@
 import { UserRole } from '../users/user.entity';
 
-// Shape attached to `request.user` after access-token validation.
+// Attached to `request.user` after the token is validated.
 export interface AuthenticatedUser {
   id: string;
   email: string;
@@ -17,6 +17,6 @@ export interface AccessTokenPayload {
 export interface RefreshTokenPayload {
   sub: string;
   type: 'refresh';
-  // Session id; the matching Redis key must exist for the token to be usable.
+  // Session id; must still exist in Redis.
   jti: string;
 }

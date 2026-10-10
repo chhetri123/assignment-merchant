@@ -3,7 +3,7 @@ import { Request } from 'express';
 import { Observable, tap } from 'rxjs';
 import { redact } from '../security/redact';
 
-// Bodies are redacted so credentials never land in stdout.
+// Bodies are redacted before logging.
 @Injectable()
 export class RequestLoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger('HTTP');

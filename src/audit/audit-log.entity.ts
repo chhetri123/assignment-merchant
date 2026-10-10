@@ -16,7 +16,7 @@ export class AuditLog {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  // Nullable because worker-driven events have no human actor.
+  // Null for events raised by the worker.
   @Index()
   @Column({ type: 'uuid', nullable: true })
   actorId: string | null;
