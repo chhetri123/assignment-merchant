@@ -42,12 +42,20 @@ class EnvironmentVariables {
   REDIS_PORT: number;
 
   @IsString()
-  @Matches(/^.{32,}$/, { message: 'JWT_SECRET must be at least 32 characters' })
-  JWT_SECRET: string;
+  @Matches(/^.{32,}$/, { message: 'JWT_ACCESS_SECRET must be at least 32 characters' })
+  JWT_ACCESS_SECRET: string;
+
+  @IsString()
+  @Matches(/^.{32,}$/, { message: 'JWT_REFRESH_SECRET must be at least 32 characters' })
+  JWT_REFRESH_SECRET: string;
 
   @IsOptional()
   @IsString()
-  JWT_EXPIRES_IN?: string;
+  JWT_ACCESS_EXPIRES_IN?: string;
+
+  @IsOptional()
+  @IsString()
+  JWT_REFRESH_EXPIRES_IN?: string;
 
   @IsString()
   @Matches(/^[0-9a-fA-F]{64}$/, { message: 'ENCRYPTION_KEY must be 64 hex characters (32 bytes)' })

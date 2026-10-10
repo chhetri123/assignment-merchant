@@ -13,8 +13,10 @@ export interface AppConfig {
     port: number;
   };
   jwt: {
-    secret: string;
-    expiresIn: string;
+    accessSecret: string;
+    accessExpiresIn: string;
+    refreshSecret: string;
+    refreshExpiresIn: string;
   };
   encryptionKey: string;
 }
@@ -34,8 +36,10 @@ export default (): AppConfig => ({
     port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
   },
   jwt: {
-    secret: process.env.JWT_SECRET as string,
-    expiresIn: process.env.JWT_EXPIRES_IN ?? '1h',
+    accessSecret: process.env.JWT_ACCESS_SECRET as string,
+    accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN ?? '15m',
+    refreshSecret: process.env.JWT_REFRESH_SECRET as string,
+    refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? '7d',
   },
   encryptionKey: process.env.ENCRYPTION_KEY as string,
 });
