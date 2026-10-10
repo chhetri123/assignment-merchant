@@ -5,6 +5,7 @@ import { AuthenticatedUser } from '../auth/authenticated-user';
 import { AuditAction } from '../audit/audit-log.entity';
 import { AuditService } from '../audit/audit.service';
 import { PaginatedDto } from '../common/dto/pagination.dto';
+import { RiskReviewQueue } from '../risk/risk-review.queue';
 import { UserRole } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
 import { AbilityFactory, Action, AppAbility } from '../authorization/ability.factory';
@@ -42,6 +43,7 @@ export class ApplicationsService {
     private readonly users: UsersService,
     private readonly audit: AuditService,
     private readonly abilityFactory: AbilityFactory,
+    private readonly riskQueue: RiskReviewQueue,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -178,6 +180,9 @@ export class ApplicationsService {
 
       return result;
     });
+
+    // Enqueued after commit, so the worker cannot read a row that does not exist yet.
+    await this.riskQueue.enqueue(saved);
 
     return ApplicationResponseDto.fromEntity(saved);
   }
