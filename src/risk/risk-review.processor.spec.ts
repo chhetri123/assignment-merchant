@@ -92,6 +92,25 @@ describe('RiskReviewProcessor', () => {
     expect(record).not.toHaveBeenCalled();
   });
 
+  it('skips when another worker reviewed the application first', async () => {
+    // Passes the pre-check, then the locked read sees the committed change.
+    findOne
+      .mockResolvedValueOnce(buildApplication())
+      .mockResolvedValueOnce(buildApplication({ status: ApplicationStatus.UNDER_REVIEW }));
+    evaluate.mockResolvedValue({
+      reference: 'kyb_2',
+      score: 70,
+      status: RiskStatus.PASSED,
+      reason: 'matched',
+    });
+
+    const result = await processor.review('app-1', 'job-2', 1);
+
+    expect(result).toEqual({ skipped: true });
+    expect(save).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
+  });
+
   it('skips a deleted application instead of retrying forever', async () => {
     findOne.mockResolvedValue(null);
 

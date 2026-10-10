@@ -48,26 +48,38 @@ export class RiskReviewProcessor extends WorkerHost {
       return { skipped: true };
     }
 
-    // A retry or redelivery after a successful run finds the application
-    // already moved on and does nothing.
+    // Cheap pre-check so an already-reviewed application costs no provider call.
     if (application.status !== ApplicationStatus.SUBMITTED) {
       this.logger.log(`Application ${applicationId} is ${application.status}, skipping ${jobId}`);
       return { skipped: true };
     }
 
+    // Called before the transaction: the provider is slow and must not run
+    // while the row is locked.
     const assessment = await this.provider.evaluate(application);
 
-    await this.dataSource.transaction(async (manager) => {
+    return this.dataSource.transaction(async (manager) => {
       const repository = manager.getRepository(MerchantApplication);
-      assertTransition(application.status, ApplicationStatus.UNDER_REVIEW);
+      const locked = await repository.findOne({
+        where: { id: applicationId },
+        lock: { mode: 'pessimistic_write' },
+      });
 
-      application.status = ApplicationStatus.UNDER_REVIEW;
-      application.riskStatus = assessment.status;
-      application.riskScore = assessment.score;
-      application.riskReference = assessment.reference;
-      application.riskReason = assessment.reason;
-      application.riskCheckedAt = new Date();
-      await repository.save(application);
+      // Re-checked under the lock: with concurrency > 1 a second job for the
+      // same application can reach this point after the first one committed.
+      if (!locked || locked.status !== ApplicationStatus.SUBMITTED) {
+        this.logger.log(`Application ${applicationId} already reviewed, skipping ${jobId}`);
+        return { skipped: true };
+      }
+
+      assertTransition(locked.status, ApplicationStatus.UNDER_REVIEW);
+      locked.status = ApplicationStatus.UNDER_REVIEW;
+      locked.riskStatus = assessment.status;
+      locked.riskScore = assessment.score;
+      locked.riskReference = assessment.reference;
+      locked.riskReason = assessment.reason;
+      locked.riskCheckedAt = new Date();
+      await repository.save(locked);
 
       await this.audit.record(
         {
@@ -84,16 +96,19 @@ export class RiskReviewProcessor extends WorkerHost {
         },
         manager,
       );
-    });
 
-    return { status: assessment.status };
+      return { status: assessment.status };
+    });
   }
 
   // Park the application for a human instead of leaving it PENDING forever.
   async parkForManualReview(applicationId: string, jobId: string, attempts: number): Promise<void> {
     await this.dataSource.transaction(async (manager) => {
       const repository = manager.getRepository(MerchantApplication);
-      const application = await repository.findOne({ where: { id: applicationId } });
+      const application = await repository.findOne({
+        where: { id: applicationId },
+        lock: { mode: 'pessimistic_write' },
+      });
       if (!application || application.status !== ApplicationStatus.SUBMITTED) {
         return;
       }
