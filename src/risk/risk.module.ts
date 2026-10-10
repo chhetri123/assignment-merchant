@@ -20,6 +20,7 @@ import { RISK_QUEUE } from './risk.constants';
         connection: {
           host: config.getOrThrow<string>('redis.host'),
           port: config.getOrThrow<number>('redis.port'),
+          db: config.get<number>('redis.db') ?? 0,
         },
       }),
     }),

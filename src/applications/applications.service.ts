@@ -253,10 +253,22 @@ export class ApplicationsService {
 
     const saved = await this.dataSource.transaction(async (manager) => {
       const repository = manager.getRepository(MerchantApplication);
-      application.status = nextStatus;
-      application.decisionReason = dto.reason ?? null;
-      application.decidedAt = new Date();
-      const result = await repository.save(application);
+
+      // Re-read under a row lock: two reviewers deciding at once would
+      // otherwise both pass the transition check above.
+      const locked = await repository.findOne({
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!locked) {
+        throw new NotFoundException('Application not found');
+      }
+      assertTransition(locked.status, nextStatus);
+
+      locked.status = nextStatus;
+      locked.decisionReason = dto.reason ?? null;
+      locked.decidedAt = new Date();
+      const result = await repository.save(locked);
 
       await this.audit.record(
         {

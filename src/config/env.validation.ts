@@ -41,6 +41,11 @@ class EnvironmentVariables {
   @IsInt()
   REDIS_PORT: number;
 
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  REDIS_DB?: number;
+
   @IsString()
   @Matches(/^.{32,}$/, { message: 'JWT_ACCESS_SECRET must be at least 32 characters' })
   JWT_ACCESS_SECRET: string;

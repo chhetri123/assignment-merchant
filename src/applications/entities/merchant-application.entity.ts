@@ -136,7 +136,7 @@ export class MerchantApplication {
   @Column({ type: 'timestamptz', nullable: true })
   submittedAt: Date | null;
 
-  // Optimistic lock against concurrent decisions.
+  // Bumped on every write; useful for change tracking and conflict debugging.
   @VersionColumn()
   version: number;
 

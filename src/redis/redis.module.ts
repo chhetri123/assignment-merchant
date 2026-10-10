@@ -14,6 +14,7 @@ export const REDIS_CLIENT = 'REDIS_CLIENT';
         new Redis({
           host: config.getOrThrow<string>('redis.host'),
           port: config.getOrThrow<number>('redis.port'),
+          db: config.get<number>('redis.db') ?? 0,
           // BullMQ requires this.
           maxRetriesPerRequest: null,
         }),

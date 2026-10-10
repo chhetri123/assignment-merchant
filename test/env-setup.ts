@@ -2,3 +2,5 @@
 // the development database.
 process.env.NODE_ENV = 'test';
 process.env.DB_DATABASE = process.env.TEST_DB_DATABASE ?? 'merchant_test';
+// Separate Redis db, so a locally running API never steals the test's jobs.
+process.env.REDIS_DB = process.env.TEST_REDIS_DB ?? '1';
