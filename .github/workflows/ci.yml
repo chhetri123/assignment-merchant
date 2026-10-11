@@ -48,9 +48,9 @@ jobs:
       REDIS_HOST: localhost
       REDIS_PORT: 6379
       # Throwaway values for CI only; real secrets never live in the repo.
-      JWT_ACCESS_SECRET: ci-access-secret-ci-access-secret-0123456789
-      JWT_REFRESH_SECRET: ci-refresh-secret-ci-refresh-secret-0123456789
-      ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000000
+      JWT_ACCESS_SECRET: 'ci-access-secret-ci-access-secret-0123456789'
+      JWT_REFRESH_SECRET: 'ci-refresh-secret-ci-refresh-secret-0123456789'
+      ENCRYPTION_KEY: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
 
     steps:
       - uses: actions/checkout@v4
