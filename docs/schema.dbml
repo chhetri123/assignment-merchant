@@ -1,0 +1,111 @@
+// Source of truth for the diagram in the README.
+// Paste into https://dbdiagram.io/d to regenerate it.
+
+Table users {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  email varchar(255) [not null, unique]
+  passwordHash varchar(255) [not null, note: 'bcrypt; column is select:false']
+  fullName varchar(120) [not null]
+  role users_role_enum [not null, note: 'ADMIN | REVIEWER | SALES']
+  isActive boolean [not null, default: true]
+  createdAt timestamptz [not null, default: `now()`]
+  updatedAt timestamptz [not null, default: `now()`]
+}
+
+Table merchant_applications {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  businessName varchar(160) [not null]
+  legalBusinessName varchar(200) [not null]
+  businessType business_type_enum [not null]
+  ownerFullName varchar(120) [not null]
+  ownerEmail varchar(255) [not null]
+  ownerPhone varchar(32) [not null]
+  ownerTaxId text [note: 'AES-256-GCM ciphertext, masked on read']
+  addressLine1 varchar(160) [not null]
+  city varchar(80) [not null]
+  state varchar(80) [not null]
+  postalCode varchar(16) [not null]
+  country char(2) [not null]
+  requestedMonthlyVolume decimal [not null, note: 'numeric(14,2) in Postgres']
+  averageTicketSize decimal [not null, note: 'numeric(12,2) in Postgres']
+  currency char(3) [not null]
+  mcc char(4) [not null]
+  status application_status_enum [not null, default: 'DRAFT']
+  riskStatus risk_status_enum [not null, default: 'NOT_STARTED']
+  riskScore integer
+  riskReference varchar(64) [note: 'Provider reference, for reconciliation']
+  riskReason text
+  riskCheckedAt timestamptz
+  createdById uuid [not null, ref: > users.id]
+  assignedReviewerId uuid [ref: > users.id]
+  decisionReason text
+  decidedAt timestamptz
+  submittedAt timestamptz
+  version integer [not null, default: 1]
+  createdAt timestamptz [not null, default: `now()`]
+  updatedAt timestamptz [not null, default: `now()`]
+
+  indexes {
+    status
+    riskStatus
+    createdById
+    assignedReviewerId
+  }
+}
+
+Table audit_logs {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  actorId uuid [ref: > users.id, note: 'null when the worker acted']
+  actorRole varchar(20) [note: 'ADMIN | REVIEWER | SALES | SYSTEM']
+  action audit_action_enum [not null]
+  entityType varchar(40) [not null]
+  entityId uuid [not null]
+  metadata jsonb [not null, default: '{}', note: 'Redacted before it is written']
+  createdAt timestamptz [not null, default: `now()`]
+
+  indexes {
+    (entityType, entityId)
+    actorId
+    createdAt
+  }
+}
+
+Enum users_role_enum {
+  ADMIN
+  REVIEWER
+  SALES
+}
+
+Enum business_type_enum {
+  SOLE_PROPRIETORSHIP
+  PARTNERSHIP
+  LLC
+  CORPORATION
+  NON_PROFIT
+}
+
+Enum application_status_enum {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  INFO_REQUESTED
+  APPROVED
+  REJECTED
+}
+
+Enum risk_status_enum {
+  NOT_STARTED
+  PENDING
+  PASSED
+  FAILED
+  MANUAL_REVIEW
+}
+
+Enum audit_action_enum {
+  APPLICATION_CREATED
+  APPLICATION_UPDATED
+  APPLICATION_SUBMITTED
+  REVIEWER_ASSIGNED
+  RISK_REVIEW_COMPLETED
+  REVIEW_DECISION_RECORDED
+}
