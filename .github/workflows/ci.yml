@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: merchant
+          POSTGRES_PASSWORD: merchant
+          POSTGRES_DB: merchant
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U merchant"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      NODE_ENV: test
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USERNAME: merchant
+      DB_PASSWORD: merchant
+      DB_DATABASE: merchant
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      # Throwaway values for CI only; real secrets never live in the repo.
+      JWT_ACCESS_SECRET: ci-access-secret-ci-access-secret-0123456789
+      JWT_REFRESH_SECRET: ci-refresh-secret-ci-refresh-secret-0123456789
+      ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Formatting
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Types
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Migrations apply cleanly
+        run: npm run migration:run
+
+      - name: Schema matches the entities
+        run: |
+          npm run migration:generate -- src/database/migrations/DriftCheck 2>&1 | tee drift.log
+          if ! grep -q "No changes in database schema were found" drift.log; then
+            echo "::error::Entities and migrations are out of sync"
+            exit 1
+          fi
+
+      - name: End-to-end tests
+        run: npm run test:e2e

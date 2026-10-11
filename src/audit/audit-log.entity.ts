@@ -33,7 +33,7 @@ export class AuditLog {
   @Column({ type: 'uuid' })
   entityId: string;
 
-  @Column({ type: 'jsonb', default: () => "'{}'::jsonb" })
+  @Column({ type: 'jsonb', default: () => "'{}'" })
   metadata: Record<string, unknown>;
 
   @Index()

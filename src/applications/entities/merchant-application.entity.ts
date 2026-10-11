@@ -137,7 +137,7 @@ export class MerchantApplication {
   submittedAt: Date | null;
 
   // Bumped on every write; useful for change tracking and conflict debugging.
-  @VersionColumn()
+  @VersionColumn({ default: 1 })
   version: number;
 
   @CreateDateColumn({ type: 'timestamptz' })
