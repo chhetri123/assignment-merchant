@@ -3,6 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
 import { MerchantApplication } from '../applications/entities/merchant-application.entity';
+import { currentRequestContext } from '../common/logging/request-context';
 import { RISK_QUEUE, RiskReviewJobData } from './risk.constants';
 
 @Injectable()
@@ -23,7 +24,11 @@ export class RiskReviewQueue {
 
     await this.queue.add(
       'review',
-      { applicationId: application.id, submittedAt: submittedAt.toISOString() },
+      {
+        applicationId: application.id,
+        submittedAt: submittedAt.toISOString(),
+        requestId: currentRequestContext()?.requestId,
+      },
       {
         jobId,
         attempts: this.config.get<number>('risk.attempts') ?? 3,

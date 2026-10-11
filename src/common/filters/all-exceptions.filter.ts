@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { QueryFailedError } from 'typeorm';
+import { currentRequestContext } from '../logging/request-context';
 
 interface ErrorBody {
   statusCode: number;
@@ -15,6 +16,7 @@ interface ErrorBody {
   error: string;
   path: string;
   timestamp: string;
+  requestId?: string;
 }
 
 const PG_UNIQUE_VIOLATION = '23505';
@@ -71,6 +73,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
   private toErrorBody(exception: unknown, path: string): ErrorBody {
     const timestamp = new Date().toISOString();
+    const requestId = currentRequestContext()?.requestId;
 
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
@@ -80,6 +83,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         error: statusLabel(status),
         path,
         timestamp,
+        requestId,
       };
     }
 
@@ -92,6 +96,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
           error: 'CONFLICT',
           path,
           timestamp,
+          requestId,
         };
       }
     }
@@ -102,6 +107,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       error: 'INTERNAL_SERVER_ERROR',
       path,
       timestamp,
+      requestId,
     };
   }
 }

@@ -11,6 +11,7 @@ import {
 } from '../applications/entities/merchant-application.entity';
 import { AuditAction } from '../audit/audit-log.entity';
 import { AuditService } from '../audit/audit.service';
+import { runWithRequestContext } from '../common/logging/request-context';
 import { RiskProviderService } from './risk-provider.service';
 import { RISK_QUEUE, type RiskReviewJobData } from './risk.constants';
 
@@ -35,8 +36,11 @@ export class RiskReviewProcessor extends WorkerHost {
   }
 
   // Thin adapter: everything testable lives in review()/parkForManualReview().
+  // The job carries the submitting request id so worker logs join up with it.
   async process(job: Job<RiskReviewJobData>): Promise<RiskReviewOutcome> {
-    return this.review(job.data.applicationId, job.id ?? 'unknown', job.attemptsMade + 1);
+    return runWithRequestContext({ requestId: job.data.requestId ?? `job-${job.id ?? 'unknown'}` }, () =>
+      this.review(job.data.applicationId, job.id ?? 'unknown', job.attemptsMade + 1),
+    );
   }
 
   async review(applicationId: string, jobId: string, attempt: number): Promise<RiskReviewOutcome> {

@@ -2,6 +2,7 @@ import { CallHandler, ExecutionContext, Injectable, Logger, NestInterceptor } fr
 import { type Request } from 'express';
 import { Observable, tap } from 'rxjs';
 import { redact } from '../security/redact';
+import { setActorId } from '../logging/request-context';
 
 // Bodies are redacted before logging.
 @Injectable()
@@ -12,15 +13,17 @@ export class RequestLoggingInterceptor implements NestInterceptor {
     const request = context.switchToHttp().getRequest<Request>();
     const startedAt = Date.now();
     const { method, url } = request;
-    const actorId = request.user?.id ?? 'anonymous';
+    const actorId = request.user?.id;
+    if (actorId) {
+      setActorId(actorId);
+    }
 
     return next.handle().pipe(
       tap({
         next: () => {
           this.logger.log(
-            `${method} ${url} actor=${actorId} ${Date.now() - startedAt}ms body=${JSON.stringify(
-              redact(request.body),
-            )}`,
+            `${method} ${url} actor=${actorId ?? 'anonymous'} ${Date.now() - startedAt}ms ` +
+              `body=${JSON.stringify(redact(request.body))}`,
           );
         },
       }),

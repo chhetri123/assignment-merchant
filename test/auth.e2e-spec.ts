@@ -120,6 +120,28 @@ describe('Auth (e2e)', () => {
       .expect(429);
   });
 
+  it('returns a request id and echoes an inbound one', async () => {
+    const generated = await ctx.http().get('/api/health').expect(200);
+    expect(generated.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
+
+    const echoed = await ctx
+      .http()
+      .get('/api/health')
+      .set('x-request-id', 'trace-abc-123')
+      .expect(200);
+    expect(echoed.headers['x-request-id']).toBe('trace-abc-123');
+  });
+
+  it('includes the request id in an error response', async () => {
+    const response = await ctx
+      .http()
+      .get('/api/v1/applications')
+      .set('x-request-id', 'trace-error-1')
+      .expect(401);
+
+    expect(response.body.requestId).toBe('trace-error-1');
+  });
+
   it('does not rate limit the health probe', async () => {
     for (let i = 0; i < 20; i += 1) {
       await ctx.http().get('/api/health').expect(200);

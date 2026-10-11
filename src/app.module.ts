@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { type MiddlewareConsumer, Module, type NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule, seconds } from '@nestjs/throttler';
@@ -10,6 +10,7 @@ import { AuthorizationModule } from './authorization/authorization.module';
 import { PoliciesGuard } from './authorization/guards/policies.guard';
 import configuration from './config/configuration';
 import { validateEnv } from './config/env.validation';
+import { RequestContextMiddleware } from './common/logging/request-context.middleware';
 import { DatabaseModule } from './database/database.module';
 import { HealthController } from './health/health.controller';
 import { RedisModule } from './redis/redis.module';
@@ -54,4 +55,8 @@ import { RedisModule } from './redis/redis.module';
     { provide: APP_GUARD, useClass: PoliciesGuard },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(RequestContextMiddleware).forRoutes('*');
+  }
+}
