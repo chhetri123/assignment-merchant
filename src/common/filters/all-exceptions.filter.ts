@@ -12,11 +12,12 @@ import { currentRequestContext } from '../logging/request-context';
 
 interface ErrorBody {
   statusCode: number;
-  message: string | string[];
-  error: string;
-  path: string;
   timestamp: string;
   requestId?: string;
+  message?: string | string[];
+  error?: string;
+  // Structured payloads (health checks) carry their own fields.
+  [key: string]: unknown;
 }
 
 const PG_UNIQUE_VIOLATION = '23505';
@@ -56,7 +57,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
-    const body = this.toErrorBody(exception, request.url);
+    const body = this.toErrorBody(exception);
 
     if (body.statusCode >= LOWEST_SERVER_ERROR_STATUS) {
       this.logger.error(
@@ -71,17 +72,24 @@ export class AllExceptionsFilter implements ExceptionFilter {
     response.status(body.statusCode).json(body);
   }
 
-  private toErrorBody(exception: unknown, path: string): ErrorBody {
+  private toErrorBody(exception: unknown): ErrorBody {
     const timestamp = new Date().toISOString();
     const requestId = currentRequestContext()?.requestId;
 
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
+      const payload: string | object = exception.getResponse();
+
+      // Structured payloads (health checks, for example) describe themselves;
+      // flattening them would throw away which dependency failed.
+      if (typeof payload === 'object' && !('message' in payload)) {
+        return { ...payload, statusCode: status, timestamp, requestId };
+      }
+
       return {
         statusCode: status,
         message: extractMessage(exception),
         error: statusLabel(status),
-        path,
         timestamp,
         requestId,
       };
@@ -94,7 +102,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
           statusCode: HttpStatus.CONFLICT,
           message: 'Resource already exists',
           error: 'CONFLICT',
-          path,
           timestamp,
           requestId,
         };
@@ -105,7 +112,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       message: 'Internal server error',
       error: 'INTERNAL_SERVER_ERROR',
-      path,
       timestamp,
       requestId,
     };

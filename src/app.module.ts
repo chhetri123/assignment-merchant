@@ -12,7 +12,7 @@ import configuration from './config/configuration';
 import { validateEnv } from './config/env.validation';
 import { RequestContextMiddleware } from './common/logging/request-context.middleware';
 import { DatabaseModule } from './database/database.module';
-import { HealthController } from './health/health.controller';
+import { HealthModule } from './health/health.module';
 import { RedisModule } from './redis/redis.module';
 
 @Module({
@@ -46,8 +46,8 @@ import { RedisModule } from './redis/redis.module';
     AuthorizationModule,
     AuthModule,
     ApplicationsModule,
+    HealthModule,
   ],
-  controllers: [HealthController],
   providers: [
     // Runs before authentication, so unauthenticated floods are capped too.
     { provide: APP_GUARD, useClass: ThrottlerGuard },

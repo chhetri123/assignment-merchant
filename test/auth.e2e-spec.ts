@@ -121,12 +121,12 @@ describe('Auth (e2e)', () => {
   });
 
   it('returns a request id and echoes an inbound one', async () => {
-    const generated = await ctx.http().get('/api/health').expect(200);
+    const generated = await ctx.http().get('/api/health/live').expect(200);
     expect(generated.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
 
     const echoed = await ctx
       .http()
-      .get('/api/health')
+      .get('/api/health/live')
       .set('x-request-id', 'trace-abc-123')
       .expect(200);
     expect(echoed.headers['x-request-id']).toBe('trace-abc-123');
@@ -144,8 +144,18 @@ describe('Auth (e2e)', () => {
 
   it('does not rate limit the health probe', async () => {
     for (let i = 0; i < 20; i += 1) {
-      await ctx.http().get('/api/health').expect(200);
+      await ctx.http().get('/api/health/live').expect(200);
     }
+  });
+
+  it('reports readiness only when the dependencies answer', async () => {
+    await ctx.http().get('/api/health/live').expect(200);
+
+    const ready = await ctx.http().get('/api/health/ready').expect(200);
+    expect(ready.body).toMatchObject({
+      status: 'ok',
+      info: { postgres: { status: 'up' }, redis: { status: 'up' } },
+    });
   });
 
   it('revokes the session on logout', async () => {
