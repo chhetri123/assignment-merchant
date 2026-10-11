@@ -14,7 +14,11 @@ import { AbilityFactory, Action, detectSubjectType } from './ability.factory';
 const SALES: AuthenticatedUser = { id: 'sales-1', email: 's1@test', role: UserRole.SALES };
 const OTHER_SALES: AuthenticatedUser = { id: 'sales-2', email: 's2@test', role: UserRole.SALES };
 const REVIEWER: AuthenticatedUser = { id: 'rev-1', email: 'r1@test', role: UserRole.REVIEWER };
-const OTHER_REVIEWER: AuthenticatedUser = { id: 'rev-2', email: 'r2@test', role: UserRole.REVIEWER };
+const OTHER_REVIEWER: AuthenticatedUser = {
+  id: 'rev-2',
+  email: 'r2@test',
+  role: UserRole.REVIEWER,
+};
 const ADMIN: AuthenticatedUser = { id: 'admin-1', email: 'a@test', role: UserRole.ADMIN };
 
 function application(createdById: string, assignedReviewerId: string | null = null) {
@@ -38,8 +42,12 @@ describe('AbilityFactory', () => {
       const foreign = application(OTHER_SALES.id);
       expect(ability.can(Action.Read, foreign)).toBe(false);
       expect(ability.can(Action.Update, foreign)).toBe(false);
-      expect(() => { assertCanRead(ability, foreign); }).toThrow(NotFoundException);
-      expect(() => { assertCanUpdate(ability, foreign); }).toThrow(NotFoundException);
+      expect(() => {
+        assertCanRead(ability, foreign);
+      }).toThrow(NotFoundException);
+      expect(() => {
+        assertCanUpdate(ability, foreign);
+      }).toThrow(NotFoundException);
     });
 
     it('cannot assign or decide', () => {
@@ -63,7 +71,9 @@ describe('AbilityFactory', () => {
       expect(ability.can(Action.Decide, assigned)).toBe(true);
       expect(ability.can(Action.Decide, assignedToOther)).toBe(false);
       expect(ability.can(Action.Decide, unassigned)).toBe(false);
-      expect(() => { assertCanDecide(ability, assignedToOther); }).toThrow(ForbiddenException);
+      expect(() => {
+        assertCanDecide(ability, assignedToOther);
+      }).toThrow(ForbiddenException);
     });
 
     it('can read every application but not edit them', () => {

@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
-import { MerchantApplication, RiskStatus } from '../applications/entities/merchant-application.entity';
+import {
+  MerchantApplication,
+  RiskStatus,
+} from '../applications/entities/merchant-application.entity';
 import { toMinorUnits } from '../common/money';
 
 const HIGH_VOLUME = 100_000_00n;
@@ -51,7 +54,10 @@ export class RiskProviderService {
       return { status: RiskStatus.PASSED, reason: 'Identity and business records matched' };
     }
     if (score >= 40) {
-      return { status: RiskStatus.MANUAL_REVIEW, reason: 'Partial match, manual verification needed' };
+      return {
+        status: RiskStatus.MANUAL_REVIEW,
+        reason: 'Partial match, manual verification needed',
+      };
     }
     return { status: RiskStatus.FAILED, reason: 'Business records could not be verified' };
   }

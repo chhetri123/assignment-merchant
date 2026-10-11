@@ -42,7 +42,9 @@ export async function createTestApp(
 
   app.setGlobalPrefix('api');
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+  app.useGlobalPipes(
+    new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+  );
   app.useGlobalFilters(new AllExceptionsFilter());
 
   await app.init();
@@ -71,10 +73,25 @@ export async function resetDatabase(ctx: TestContext): Promise<void> {
 
   await users.save([
     users.create({ email: USERS.admin, fullName: 'Admin', role: UserRole.ADMIN, passwordHash }),
-    users.create({ email: USERS.reviewer, fullName: 'Reviewer One', role: UserRole.REVIEWER, passwordHash }),
-    users.create({ email: USERS.reviewer2, fullName: 'Reviewer Two', role: UserRole.REVIEWER, passwordHash }),
+    users.create({
+      email: USERS.reviewer,
+      fullName: 'Reviewer One',
+      role: UserRole.REVIEWER,
+      passwordHash,
+    }),
+    users.create({
+      email: USERS.reviewer2,
+      fullName: 'Reviewer Two',
+      role: UserRole.REVIEWER,
+      passwordHash,
+    }),
     users.create({ email: USERS.sales, fullName: 'Sales One', role: UserRole.SALES, passwordHash }),
-    users.create({ email: USERS.sales2, fullName: 'Sales Two', role: UserRole.SALES, passwordHash }),
+    users.create({
+      email: USERS.sales2,
+      fullName: 'Sales Two',
+      role: UserRole.SALES,
+      passwordHash,
+    }),
   ]);
 
   const keys = await ctx.redis.keys('refresh:*');

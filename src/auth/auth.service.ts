@@ -31,7 +31,10 @@ export class AuthService {
 
   async login(dto: LoginDto): Promise<TokenPairDto> {
     const user = await this.users.findByEmailWithPassword(dto.email);
-    const passwordMatches = await bcrypt.compare(dto.password, user?.passwordHash ?? this.dummyHash);
+    const passwordMatches = await bcrypt.compare(
+      dto.password,
+      user?.passwordHash ?? this.dummyHash,
+    );
 
     // Same error every time, so users cannot be enumerated.
     if (!user || !user.isActive || !passwordMatches) {

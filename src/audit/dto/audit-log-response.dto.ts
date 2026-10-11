@@ -6,7 +6,10 @@ export class AuditLogResponseDto {
   @ApiProperty({ enum: AuditAction }) action: AuditAction;
   @ApiPropertyOptional() actorId: string | null;
   @ApiPropertyOptional({ example: 'SALES' }) actorRole: string | null;
-  @ApiProperty({ example: { status: 'DRAFT' }, description: 'Sensitive keys are redacted on write' })
+  @ApiProperty({
+    example: { status: 'DRAFT' },
+    description: 'Sensitive keys are redacted on write',
+  })
   metadata: Record<string, unknown>;
   @ApiProperty() createdAt: Date;
 

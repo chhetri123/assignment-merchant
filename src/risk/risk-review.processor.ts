@@ -38,8 +38,9 @@ export class RiskReviewProcessor extends WorkerHost {
   // Thin adapter: everything testable lives in review()/parkForManualReview().
   // The job carries the submitting request id so worker logs join up with it.
   async process(job: Job<RiskReviewJobData>): Promise<RiskReviewOutcome> {
-    return runWithRequestContext({ requestId: job.data.requestId ?? `job-${job.id ?? 'unknown'}` }, () =>
-      this.review(job.data.applicationId, job.id ?? 'unknown', job.attemptsMade + 1),
+    return runWithRequestContext(
+      { requestId: job.data.requestId ?? `job-${job.id ?? 'unknown'}` },
+      () => this.review(job.data.applicationId, job.id ?? 'unknown', job.attemptsMade + 1),
     );
   }
 

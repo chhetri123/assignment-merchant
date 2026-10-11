@@ -45,10 +45,7 @@ export function redact(value: unknown, depth = 0): unknown {
 }
 
 // Keeps the record type, so callers storing JSON metadata need no assertion.
-export function redactRecord(
-  value: Record<string, unknown>,
-  depth = 0,
-): Record<string, unknown> {
+export function redactRecord(value: Record<string, unknown>, depth = 0): Record<string, unknown> {
   return Object.entries(value).reduce<Record<string, unknown>>((acc, [key, val]) => {
     acc[key] = isSensitive(key) ? REDACTED : redact(val, depth + 1);
     return acc;

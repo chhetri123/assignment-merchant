@@ -19,7 +19,10 @@ export default tseslint.config(
       // converted explicitly.
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
       // Declaration merging needs an interface with a single extends clause.
-      '@typescript-eslint/no-empty-object-type': ['error', { allowInterfaces: 'with-single-extends' }],
+      '@typescript-eslint/no-empty-object-type': [
+        'error',
+        { allowInterfaces: 'with-single-extends' },
+      ],
       // The escape hatches this codebase must not use.
       '@typescript-eslint/no-explicit-any': 'error',
       'no-restricted-syntax': [
@@ -35,10 +38,7 @@ export default tseslint.config(
       ],
       '@typescript-eslint/no-non-null-assertion': 'error',
       '@typescript-eslint/no-unnecessary-type-assertion': 'error',
-      '@typescript-eslint/consistent-type-imports': [
-        'error',
-        { fixStyle: 'inline-type-imports' },
-      ],
+      '@typescript-eslint/consistent-type-imports': ['error', { fixStyle: 'inline-type-imports' }],
       // Decorator metadata needs the parameter types emitted, so interfaces
       // used in decorated signatures stay as value-position imports.
       '@typescript-eslint/no-extraneous-class': 'off',

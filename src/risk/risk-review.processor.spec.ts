@@ -25,8 +25,10 @@ function buildApplication(overrides: Partial<MerchantApplication> = {}): Merchan
 describe('RiskReviewProcessor', () => {
   const findOne = jest.fn<Promise<MerchantApplication | null>, [unknown]>();
   const save = jest.fn((entity: MerchantApplication) => Promise.resolve(entity));
-  const evaluate =
-    jest.fn<Promise<Awaited<ReturnType<RiskProviderService['evaluate']>>>, [unknown]>();
+  const evaluate = jest.fn<
+    Promise<Awaited<ReturnType<RiskProviderService['evaluate']>>>,
+    [unknown]
+  >();
   const record = jest.fn<Promise<void>, [unknown, unknown]>();
 
   let processor: RiskReviewProcessor;

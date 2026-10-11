@@ -54,7 +54,10 @@ export class ApplicationsService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async create(user: AuthenticatedUser, dto: CreateApplicationDto): Promise<ApplicationResponseDto> {
+  async create(
+    user: AuthenticatedUser,
+    dto: CreateApplicationDto,
+  ): Promise<ApplicationResponseDto> {
     const saved = await this.dataSource.transaction(async (manager) => {
       const repository = manager.getRepository(MerchantApplication);
       const application = repository.create(toApplicationColumns(dto));
