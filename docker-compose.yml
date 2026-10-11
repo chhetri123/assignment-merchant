@@ -48,24 +48,13 @@ services:
       REDIS_PORT: 6379
     ports:
       - '${PORT:-3000}:3000'
-    healthcheck:
-      test:
-        [
-          'CMD',
-          'node',
-          '-e',
-          "fetch('http://localhost:3000/api/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: sh -c "npm run migration:run && npm run seed && node dist/main"
+    # The image has no dev dependencies, so these are the compiled entrypoints.
+    command: sh -c "node dist/database/run-migrations.js && node dist/database/seeds/run-seed.js && node dist/main"
 
 volumes:
   postgres_data:

@@ -23,7 +23,9 @@
     "prepare": "husky",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "format:check": "prettier --check .",
-    "lint:fix": "eslint \"{src,test}/**/*.ts\" --fix"
+    "lint:fix": "eslint \"{src,test}/**/*.ts\" --fix",
+    "migration:run:dist": "node dist/database/run-migrations.js",
+    "seed:dist": "node dist/database/seeds/run-seed.js"
   },
   "dependencies": {
     "@casl/ability": "^7.0.1",
