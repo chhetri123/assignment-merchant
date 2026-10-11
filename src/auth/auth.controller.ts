@@ -7,6 +7,8 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
+import { AUTH_RATE_LIMIT, AUTH_RATE_TTL_MS } from '../config/throttle';
 import { AuthService } from './auth.service';
 import type { AuthenticatedUser } from './authenticated-user';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -17,6 +19,8 @@ import { TokenPairDto } from './dto/token-pair.dto';
 
 @ApiTags('auth')
 @Controller({ path: 'auth', version: '1' })
+// Credential endpoints get a much lower ceiling than the rest of the API.
+@Throttle({ default: { limit: AUTH_RATE_LIMIT, ttl: AUTH_RATE_TTL_MS } })
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 

@@ -87,6 +87,24 @@ class EnvironmentVariables {
   @IsInt()
   @Min(1)
   RISK_JOB_BACKOFF_MS?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  THROTTLE_LIMIT?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  THROTTLE_AUTH_LIMIT?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  THROTTLE_TTL_SECONDS?: number;
 }
 
 export function validateEnv(config: Record<string, unknown>) {

@@ -95,6 +95,37 @@ describe('Auth (e2e)', () => {
       .expect(401);
   });
 
+  it('rate limits repeated login attempts from the same client', async () => {
+    const attempt = () =>
+      ctx
+        .http()
+        .post('/api/v1/auth/login')
+        .send({ email: USERS.sales, password: 'WrongPassw0rd!' });
+
+    const limit = Number(process.env.THROTTLE_AUTH_LIMIT);
+    const statuses: number[] = [];
+    for (let i = 0; i < limit + 2; i += 1) {
+      const response = await attempt();
+      statuses.push(response.status);
+    }
+
+    expect(statuses.filter((status) => status === 401)).toHaveLength(limit);
+    expect(statuses.filter((status) => status === 429).length).toBeGreaterThan(0);
+
+    // A valid credential is refused too, so the limit cannot be walked past.
+    await ctx
+      .http()
+      .post('/api/v1/auth/login')
+      .send({ email: USERS.sales, password: TEST_PASSWORD })
+      .expect(429);
+  });
+
+  it('does not rate limit the health probe', async () => {
+    for (let i = 0; i < 20; i += 1) {
+      await ctx.http().get('/api/health').expect(200);
+    }
+  });
+
   it('revokes the session on logout', async () => {
     const { refreshToken } = await login(ctx, USERS.sales);
 

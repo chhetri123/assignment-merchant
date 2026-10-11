@@ -1,4 +1,5 @@
 import { durationToSeconds } from '../common/duration';
+import { AUTH_RATE_LIMIT, DEFAULT_RATE_LIMIT, RATE_TTL_SECONDS } from './throttle';
 
 export interface AppConfig {
   env: string;
@@ -25,6 +26,11 @@ export interface AppConfig {
   risk: {
     attempts: number;
     backoffMs: number;
+  };
+  throttle: {
+    defaultLimit: number;
+    authLimit: number;
+    ttlSeconds: number;
   };
 }
 
@@ -53,5 +59,10 @@ export default (): AppConfig => ({
   risk: {
     attempts: parseInt(process.env.RISK_JOB_ATTEMPTS ?? '3', 10),
     backoffMs: parseInt(process.env.RISK_JOB_BACKOFF_MS ?? '1000', 10),
+  },
+  throttle: {
+    defaultLimit: DEFAULT_RATE_LIMIT,
+    authLimit: AUTH_RATE_LIMIT,
+    ttlSeconds: RATE_TTL_SECONDS,
   },
 });

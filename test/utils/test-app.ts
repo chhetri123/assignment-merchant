@@ -82,6 +82,12 @@ export async function resetDatabase(ctx: TestContext): Promise<void> {
     await ctx.redis.del(...keys);
   }
 
+  // ThrottlerStorageRedisService writes `{<hash>:<name>}:hits` / `:blocked`.
+  const throttleKeys = await ctx.redis.keys('{*}:*');
+  if (throttleKeys.length > 0) {
+    await ctx.redis.del(...throttleKeys);
+  }
+
   // Jobs left by a previous test would otherwise be retried against rows that
   // no longer exist and slow the next test down. Drained rather than
   // obliterated: deleting the queue from under a running worker makes it stall.
