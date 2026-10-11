@@ -38,6 +38,8 @@ jobs:
 
     env:
       NODE_ENV: test
+      # Git hooks are a local-development concern; husky's own switch skips them.
+      HUSKY: 0
       DB_HOST: localhost
       DB_PORT: 5432
       DB_USERNAME: merchant
