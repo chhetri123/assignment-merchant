@@ -3,15 +3,15 @@ import {
   IsEmail,
   IsEnum,
   IsISO31661Alpha2,
-  IsNumber,
   IsOptional,
   IsPhoneNumber,
-  IsPositive,
   IsString,
   Length,
   Matches,
   MaxLength,
 } from 'class-validator';
+import { DECIMAL_PATTERN } from '../../common/money';
+import { IsPositiveAmount } from '../../common/validators/is-positive-amount.validator';
 import { BusinessType } from '../entities/merchant-application.entity';
 
 export class CreateApplicationDto {
@@ -76,15 +76,20 @@ export class CreateApplicationDto {
   @IsISO31661Alpha2()
   country: string;
 
-  @ApiProperty({ example: 25000.5, description: 'Expected monthly card volume' })
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @IsPositive()
-  requestedMonthlyVolume: number;
+  @ApiProperty({
+    example: '25000.50',
+    description: 'Expected monthly card volume, decimal string with up to 2 places',
+  })
+  @IsString()
+  @Matches(DECIMAL_PATTERN, { message: 'requestedMonthlyVolume must be a positive decimal amount' })
+  @IsPositiveAmount()
+  requestedMonthlyVolume: string;
 
-  @ApiProperty({ example: 45.75 })
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @IsPositive()
-  averageTicketSize: number;
+  @ApiProperty({ example: '45.75', description: 'Decimal string with up to 2 places' })
+  @IsString()
+  @Matches(DECIMAL_PATTERN, { message: 'averageTicketSize must be a positive decimal amount' })
+  @IsPositiveAmount()
+  averageTicketSize: string;
 
   @ApiProperty({ example: 'USD' })
   @IsString()

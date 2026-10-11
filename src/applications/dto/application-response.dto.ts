@@ -24,8 +24,8 @@ export class ApplicationResponseDto {
   @ApiProperty() state: string;
   @ApiProperty() postalCode: string;
   @ApiProperty() country: string;
-  @ApiProperty({ example: 25000.5 }) requestedMonthlyVolume: number;
-  @ApiProperty({ example: 45.75 }) averageTicketSize: number;
+  @ApiProperty({ example: '25000.50' }) requestedMonthlyVolume: string;
+  @ApiProperty({ example: '45.75' }) averageTicketSize: string;
   @ApiProperty() currency: string;
   @ApiProperty() mcc: string;
   @ApiProperty({ enum: ApplicationStatus }) status: ApplicationStatus;
@@ -56,9 +56,9 @@ export class ApplicationResponseDto {
       state: application.state,
       postalCode: application.postalCode,
       country: application.country,
-      // numeric columns arrive as strings from the pg driver.
-      requestedMonthlyVolume: Number(application.requestedMonthlyVolume),
-      averageTicketSize: Number(application.averageTicketSize),
+      // Kept as the decimal string the driver returns; never a float.
+      requestedMonthlyVolume: application.requestedMonthlyVolume,
+      averageTicketSize: application.averageTicketSize,
       currency: application.currency,
       mcc: application.mcc,
       status: application.status,

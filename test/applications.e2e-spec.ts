@@ -289,6 +289,33 @@ describe('Application lifecycle (e2e)', () => {
     expect(paged.body.data).toHaveLength(1);
   });
 
+  it('keeps money as an exact decimal string', async () => {
+    const created = await create(
+      applicationPayload({ requestedMonthlyVolume: '999999999999.99', averageTicketSize: '0.07' }),
+    );
+
+    expect(created.body.requestedMonthlyVolume).toBe('999999999999.99');
+    expect(created.body.averageTicketSize).toBe('0.07');
+
+    const [row] = await ctx.dataSource.query(
+      `SELECT "requestedMonthlyVolume", "averageTicketSize" FROM merchant_applications WHERE id = $1`,
+      [created.body.id],
+    );
+    expect(row.requestedMonthlyVolume).toBe('999999999999.99');
+    expect(row.averageTicketSize).toBe('0.07');
+  });
+
+  it('rejects amounts that are not positive two-place decimals', async () => {
+    for (const amount of ['1.234', '-5.00', '0.00', 'abc', '1e5']) {
+      await ctx
+        .http()
+        .post('/api/v1/applications')
+        .set('Authorization', bearer(salesToken))
+        .send(applicationPayload({ requestedMonthlyVolume: amount }))
+        .expect(400);
+    }
+  });
+
   it('validates the payload and rejects unknown fields', async () => {
     const response = await ctx
       .http()

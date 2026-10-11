@@ -3,8 +3,8 @@ import { type CreateApplicationDto } from './dto/create-application.dto';
 import { type UpdateApplicationDto } from './dto/update-application.dto';
 import { type MerchantApplication } from './entities/merchant-application.entity';
 
-// Explicit mapping instead of spreading the DTO: the API shape and the column
-// shape stay independent, and money is handed to the driver as a decimal string.
+// Explicit mapping instead of spreading the DTO, so the API shape and the
+// column shape stay independent.
 export function toApplicationColumns(
   dto: CreateApplicationDto | UpdateApplicationDto,
 ): DeepPartial<MerchantApplication> {
@@ -25,10 +25,10 @@ export function toApplicationColumns(
   if (dto.currency !== undefined) fields.currency = dto.currency;
   if (dto.mcc !== undefined) fields.mcc = dto.mcc;
   if (dto.requestedMonthlyVolume !== undefined) {
-    fields.requestedMonthlyVolume = dto.requestedMonthlyVolume.toFixed(2);
+    fields.requestedMonthlyVolume = dto.requestedMonthlyVolume;
   }
   if (dto.averageTicketSize !== undefined) {
-    fields.averageTicketSize = dto.averageTicketSize.toFixed(2);
+    fields.averageTicketSize = dto.averageTicketSize;
   }
 
   return fields;

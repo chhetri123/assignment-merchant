@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import { MerchantApplication, RiskStatus } from '../applications/entities/merchant-application.entity';
+import { toMinorUnits } from '../common/money';
+
+const HIGH_VOLUME = 100_000_00n;
+const ELEVATED_VOLUME = 50_000_00n;
 
 export interface RiskAssessment {
   reference: string;
@@ -30,8 +34,8 @@ export class RiskProviderService {
   private scoreFor(application: MerchantApplication): number {
     const digest = createHash('sha256').update(application.id).digest();
     const base = digest.readUInt16BE(0) % 101;
-    const volume = Number(application.requestedMonthlyVolume);
-    const volumePenalty = volume > 100_000 ? 25 : volume > 50_000 ? 10 : 0;
+    const volume = toMinorUnits(application.requestedMonthlyVolume);
+    const volumePenalty = volume > HIGH_VOLUME ? 25 : volume > ELEVATED_VOLUME ? 10 : 0;
 
     return Math.max(0, base - volumePenalty);
   }
