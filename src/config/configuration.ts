@@ -22,6 +22,10 @@ export interface AppConfig {
     refreshTtlSeconds: number;
   };
   encryptionKey: string;
+  risk: {
+    attempts: number;
+    backoffMs: number;
+  };
 }
 
 export default (): AppConfig => ({
@@ -46,4 +50,8 @@ export default (): AppConfig => ({
     refreshTtlSeconds: durationToSeconds(process.env.JWT_REFRESH_EXPIRES_IN ?? '7d'),
   },
   encryptionKey: process.env.ENCRYPTION_KEY as string,
+  risk: {
+    attempts: parseInt(process.env.RISK_JOB_ATTEMPTS ?? '3', 10),
+    backoffMs: parseInt(process.env.RISK_JOB_BACKOFF_MS ?? '1000', 10),
+  },
 });

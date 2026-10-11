@@ -1,5 +1,6 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Queue } from 'bullmq';
 import { MerchantApplication } from '../applications/entities/merchant-application.entity';
 import { RISK_QUEUE, RiskReviewJobData } from './risk.constants';
@@ -8,7 +9,10 @@ import { RISK_QUEUE, RiskReviewJobData } from './risk.constants';
 export class RiskReviewQueue {
   private readonly logger = new Logger(RiskReviewQueue.name);
 
-  constructor(@InjectQueue(RISK_QUEUE) private readonly queue: Queue<RiskReviewJobData>) {}
+  constructor(
+    @InjectQueue(RISK_QUEUE) private readonly queue: Queue<RiskReviewJobData>,
+    private readonly config: ConfigService,
+  ) {}
 
   // The job id is derived from the submission, so a duplicate enqueue for the
   // same submission is dropped by BullMQ instead of running twice.
@@ -22,8 +26,11 @@ export class RiskReviewQueue {
       { applicationId: application.id, submittedAt: submittedAt.toISOString() },
       {
         jobId,
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 1000 },
+        attempts: this.config.get<number>('risk.attempts') ?? 3,
+        backoff: {
+          type: 'exponential',
+          delay: this.config.get<number>('risk.backoffMs') ?? 1000,
+        },
         removeOnComplete: 100,
         removeOnFail: 500,
       },

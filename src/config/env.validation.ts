@@ -1,5 +1,14 @@
 import { plainToInstance } from 'class-transformer';
-import { IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Matches, validateSync } from 'class-validator';
+import {
+  IsIn,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+  Min,
+  validateSync,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { DURATION_PATTERN } from '../common/duration';
 
@@ -66,6 +75,18 @@ class EnvironmentVariables {
   @IsString()
   @Matches(/^[0-9a-fA-F]{64}$/, { message: 'ENCRYPTION_KEY must be 64 hex characters (32 bytes)' })
   ENCRYPTION_KEY: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  RISK_JOB_ATTEMPTS?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  RISK_JOB_BACKOFF_MS?: number;
 }
 
 export function validateEnv(config: Record<string, unknown>) {

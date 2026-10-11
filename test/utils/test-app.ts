@@ -1,5 +1,7 @@
 import { type INestApplication, ValidationPipe, VersioningType } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
+import { getQueueToken } from '@nestjs/bullmq';
+import { Test, type TestingModuleBuilder } from '@nestjs/testing';
+import { type Queue } from 'bullmq';
 import * as bcrypt from 'bcryptjs';
 import type Redis from 'ioredis';
 import request from 'supertest';
@@ -7,6 +9,7 @@ import { DataSource } from 'typeorm';
 import { AppModule } from '../../src/app.module';
 import { AllExceptionsFilter } from '../../src/common/filters/all-exceptions.filter';
 import { REDIS_CLIENT } from '../../src/redis/redis.module';
+import { RISK_QUEUE } from '../../src/risk/risk.constants';
 import { User, UserRole } from '../../src/users/user.entity';
 
 export const TEST_PASSWORD = 'TestPassw0rd!';
@@ -27,9 +30,14 @@ export interface TestContext {
   close: () => Promise<void>;
 }
 
-// Mirrors the global pipes and filters from main.ts so responses match production.
-export async function createTestApp(): Promise<TestContext> {
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+// Mirrors the global pipes and filters from main.ts so responses match
+// production. `configure` lets a spec swap a provider, e.g. a failing risk
+// provider, before the module is compiled.
+export async function createTestApp(
+  configure?: (builder: TestingModuleBuilder) => TestingModuleBuilder,
+): Promise<TestContext> {
+  const builder = Test.createTestingModule({ imports: [AppModule] });
+  const moduleRef = await (configure ? configure(builder) : builder).compile();
   const app = moduleRef.createNestApplication();
 
   app.setGlobalPrefix('api');
@@ -73,6 +81,14 @@ export async function resetDatabase(ctx: TestContext): Promise<void> {
   if (keys.length > 0) {
     await ctx.redis.del(...keys);
   }
+
+  // Jobs left by a previous test would otherwise be retried against rows that
+  // no longer exist and slow the next test down. Drained rather than
+  // obliterated: deleting the queue from under a running worker makes it stall.
+  const queue = ctx.app.get<Queue>(getQueueToken(RISK_QUEUE));
+  await queue.drain(true);
+  await queue.clean(0, 1000, 'completed');
+  await queue.clean(0, 1000, 'failed');
 }
 
 export async function login(ctx: TestContext, email: string) {
