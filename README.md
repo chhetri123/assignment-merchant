@@ -1,7 +1,6 @@
 # Assignment: Merchant Onboarding & Operations API
 
-This is my implementation of the Senior Backend Engineer assignment. The brief
-asked for a production-oriented slice. From the requirements: a merchant payments
+The brief asked for a production-oriented slice. From the requirements: a merchant payments
 onboarding service where sales staff submit merchant applications, a background
 worker scores them against a risk provider, and an assigned reviewer approves or
 rejects them. Every significant action is written to an audit trail, and the whole
